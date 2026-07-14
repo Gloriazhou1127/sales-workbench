@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>重点客户跟进 — 数据分析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f3f4f6; color:#1f2937 }
+.header {
+  background:#fff; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between;
+  box-shadow:0 1px 3px rgba(0,0,0,.08); position:sticky; top:0; z-index:50
+}
+.header h1 { font-size:18px; font-weight:700; color:#0F6E56 }
+.header-right { display:flex; align-items:center; gap:12px; font-size:13px; color:#6b7280 }
+
+.main { max-width:1320px; margin:0 auto; padding:20px 24px }
+
+/* KPI Cards */
+.kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:20px }
+.kpi-card {
+  background:#fff; border-radius:10px; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,.06);
+  border-left:4px solid #0F6E56
+}
+.kpi-card .kpi-val { font-size:28px; font-weight:700; color:#0F6E56; margin-bottom:4px }
+.kpi-card .kpi-lbl { font-size:12px; color:#9ca3af; text-transform:uppercase }
+.kpi-card.c2 { border-left-color:#3B82F6 } .kpi-card.c2 .kpi-val { color:#3B82F6 }
+.kpi-card.c3 { border-left-color:#8B5CF6 } .kpi-card.c3 .kpi-val { color:#8B5CF6 }
+.kpi-card.c4 { border-left-color:#F59E0B } .kpi-card.c4 .kpi-val { color:#F59E0B }
+.kpi-card.c5 { border-left-color:#10B981 } .kpi-card.c5 .kpi-val { color:#10B981 }
+
+/* Panel */
+.panel {
+  background:#fff; border-radius:10px; padding:20px 24px; margin-bottom:18px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06)
+}
+.panel h3 { font-size:15px; font-weight:600; margin-bottom:14px; color:#374151 }
+.panel .sub { font-size:12px; color:#9ca3af; font-weight:400 }
+
+.chart-wrap { position:relative; height:280px }
+.chart-wrap canvas { width:100%!important }
+
+.filter-row { display:flex; align-items:center; gap:10px; margin-bottom:14px }
+.filter-row select, .filter-row input {
+  padding:6px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;
+  background:#fff; min-width:140px
+}
+
+/* Summary Table (above chart) */
+.summary-table {
+  width:100%; border-collapse:collapse; font-size:12px; margin-bottom:14px;
+  border:1px solid #e5e7eb; border-radius:8px; overflow:hidden
+}
+.summary-table th {
+  background:#f0faf5; padding:7px 10px; text-align:left; font-weight:600;
+  color:#0F6E56; border-bottom:2px solid #e5e7eb; white-space:nowrap
+}
+.summary-table td {
+  padding:6px 10px; border-bottom:1px solid #f3f4f6; text-align:center
+}
+.summary-table td:first-child { text-align:left; font-weight:500 }
+.summary-table tbody tr:hover { background:#f6fdf9 }
+.summary-table .total-row {
+  background:#e6f1fb; font-weight:700
+}
+.summary-table .total-row td { color:#185FA5 }
+
+/* Cross table */
+.cross-table {
+  width:100%; border-collapse:collapse; font-size:12px; margin-bottom:14px;
+  border:1px solid #e5e7eb; border-radius:8px; overflow:hidden
+}
+.cross-table th {
+  background:#f0faf5; padding:6px 8px; text-align:center; font-weight:600;
+  color:#374151; border-bottom:2px solid #e5e7eb; white-space:nowrap
+}
+.cross-table th:first-child { text-align:left; color:#0F6E56; min-width:90px }
+.cross-table td {
+  padding:5px 8px; border-bottom:1px solid #f3f4f6; text-align:center;
+  white-space:nowrap
+}
+.cross-table td:first-child { text-align:left; font-weight:500; color:#374151 }
+.cross-table tbody tr:hover { background:#f6fdf9 }
+.cross-table .total-row { background:#e6f1fb; font-weight:700 }
+.cross-table .total-row td { color:#185FA5 }
+.cross-table .row-old td:first-child { padding-left:20px; font-size:11px; color:#9ca3af }
+.cross-table .row-old td { color:#9ca3af }
+.cross-wrap { overflow-x:auto; margin-bottom:14px }
+
+/* KPI sub-line */
+.kpi-sub { font-size:11px; color:#9ca3af; margin-top:2px; line-height:1.4 }
+
+/* Drill modal */
+.modal-overlay {
+  display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,.4);
+  z-index:200; justify-content:center; align-items:center
+}
+.modal-overlay.show { display:flex }
+.modal-box {
+  background:#fff; border-radius:12px; width:90%; max-width:800px; max-height:80vh;
+  overflow:hidden; display:flex; flex-direction:column; box-shadow:0 8px 40px rgba(0,0,0,.15)
+}
+.modal-header { padding:16px 24px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center }
+.modal-header h3 { font-size:16px; margin:0 }
+.modal-close { border:none; background:none; font-size:20px; cursor:pointer; color:#9ca3af }
+.modal-body { padding:16px 24px; overflow-y:auto; flex:1 }
+.modal-search {
+  padding:6px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;
+  margin-bottom:12px; width:100%
+}
+
+.drill-table { width:100%; border-collapse:collapse; font-size:13px }
+.drill-table th { background:#f9fafb; padding:8px 10px; text-align:left; font-weight:600; border-bottom:2px solid #e5e7eb; white-space:nowrap }
+.drill-table td { padding:7px 10px; border-bottom:1px solid #f3f4f6 }
+.drill-pagination { display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:12px; color:#6b7280 }
+.drill-pagination button {
+  padding:4px 12px; border:1px solid #d1d5db; border-radius:4px; background:#fff;
+  font-size:12px; cursor:pointer
+}
+.drill-pagination button:disabled { opacity:.4; cursor:default }
+
+/* Table for stage6 */
+.data-table { width:100%; border-collapse:collapse; font-size:13px }
+.data-table th { background:#f9fafb; padding:8px 10px; text-align:left; font-weight:600; border-bottom:2px solid #e5e7eb }
+.data-table td { padding:7px 10px; border-bottom:1px solid #f3f4f6 }
+
+.empty { text-align:center; padding:32px; color:#9ca3af }
+.btn-sm { padding:5px 12px; border-radius:6px; font-size:12px; border:1px solid #d1d5db; background:#fff; cursor:pointer }
+.btn-sm:hover { background:#f3f4f6 }
+
+.grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:18px }
+
+@media (max-width:900px) {
+  .kpi-row { grid-template-columns:repeat(3,1fr) }
+  .grid-2col { grid-template-columns:1fr }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:20px">
+    <h1>📊 重点客户跟进</h1>
+    <nav style="display:flex;gap:6px;background:#fff;padding:4px;border-radius:8px">
+      <a href="/key-account/hardware" style="padding:8px 20px;border-radius:7px;text-decoration:none;font-size:14px;font-weight:500;color:#666" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">📋 填报明细</a>
+      <a href="/key-account/followup-detail" style="padding:8px 20px;border-radius:7px;text-decoration:none;font-size:14px;font-weight:500;color:#666" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">📊 跟进明细库</a>
+      <a href="/key-account/analytics" class="active" style="background:#E6F1FB;color:#185FA5;font-weight:600">📈 数据分析</a>
+      <a href="/key-account/data-import" id="tabImport" style="padding:8px 20px;border-radius:7px;text-decoration:none;font-size:14px;font-weight:500;color:#666;display:none" onmouseover="this.style.background='#f0f4fa'" onmouseout="this.style.background='transparent'">📤 数据导入</a>
+    </nav>
+  </div>
+  <div class="header-right"><span id="userName">—</span> | <a href="/" onclick="localStorage.removeItem('token');return true" style="color:#ef4444;text-decoration:none">退出</a></div>
+</div>
+
+<div class="main">
+
+  <!-- KPI Cards -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-val" id="kpi-new">—</div>
+      <div class="kpi-lbl">本财年新增客户数</div>
+    </div>
+    <div class="kpi-card c2">
+      <div class="kpi-val" id="kpi-checked">—</div>
+      <div class="kpi-lbl">本财年新增打点客户数</div>
+      <div class="kpi-sub" id="kpi-checked-sub">新客户 — 家 · 老客户 — 家</div>
+    </div>
+    <div class="kpi-card c3"><div class="kpi-val" id="kpi-ratio">—%</div><div class="kpi-lbl">打点占比</div><div class="kpi-sub">新客户打点 / 新增客户数</div></div>
+    <div class="kpi-card c4"><div class="kpi-val" id="kpi-conv">—%</div><div class="kpi-lbl">借用→销售转化率</div></div>
+    <div class="kpi-card c5"><div class="kpi-val" id="kpi-review">—%</div><div class="kpi-lbl">价值复盘完成率</div></div>
+  </div>
+
+  <!-- Department Filter -->
+  <div class="filter-row">
+    <select id="globalDept" onchange="refreshAll()">
+      <option value="">全部部门</option>
+    </select>
+  </div>
+
+  <!-- Module 1+2: Monthly charts side by side -->
+  <div class="grid-2col">
+    <!-- M1: New Customers Monthly -->
+    <div class="panel">
+      <h3>📈 每月新增客户数 <span class="sub">（本财年 · 客户清单口径）</span></h3>
+      <div class="cross-wrap"><div id="tableNewCustomers"></div></div>
+      <div class="chart-wrap"><canvas id="chartNewCustomers"></canvas></div>
+      <p style="margin-top:8px;font-size:11px;color:#9ca3af">* 表格全量显示，图表按上方筛选器过滤 · 点击柱状图可下钻查看顾问明细</p>
+    </div>
+
+    <!-- M2: New Checkins Monthly -->
+    <div class="panel">
+      <h3>✨ 每月新增打点客户数 <span class="sub">（本财年）</span></h3>
+      <div class="cross-wrap"><div id="tableNewCheckins"></div></div>
+      <div class="chart-wrap"><canvas id="chartNewCheckins"></canvas></div>
+      <p style="margin-top:8px;font-size:11px;color:#9ca3af">* 表格全量显示，图表按上方筛选器过滤 · 点击柱状图可下钻查看顾问明细</p>
+    </div>
+  </div>
+
+  <!-- M3: Stage Distribution -->
+  <div class="panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0">📊 阶段分布 <span class="sub" id="stageDistLabel">（本财年已打点客户）</span></h3>
+      <select id="stageWeek" onchange="onStageWeekChange()" style="padding:5px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;background:#fff">
+        <option value="">全部时间</option>
+      </select>
+    </div>
+    <div id="tableStages"></div>
+    <div class="chart-wrap"><canvas id="chartStages"></canvas></div>
+    <p style="margin-top:8px;font-size:11px;color:#9ca3af">* 点击柱子可下钻查看该阶段客户明细</p>
+  </div>
+
+  <!-- M4: Conversion Funnel -->
+  <div class="panel">
+    <h3>🔽 转化漏斗 <span class="sub">（借用 → 采购流转）</span></h3>
+    <div class="chart-wrap" style="height:220px"><canvas id="chartFunnel"></canvas></div>
+  </div>
+
+  <!-- M5: Stage 6 Detail -->
+  <div class="panel">
+    <h3>🚫 阶段⑥ 无采购意向 — 客户清单</h3>
+    <div id="stage6Table"></div>
+  </div>
+
+  <!-- M6: Weekly Fill Stats by City -->
+  <div class="panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0">📅 填报统计 <span class="sub" id="weeklyRoundLabel">按城市</span></h3>
+      <select id="fillWeek" onchange="loadWeeklyFillStats()" style="padding:5px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;background:#fff">
+        <option value="this">本周</option>
+        <option value="last">上周</option>
+      </select>
+    </div>
+    <div id="weeklyFillTable"></div>
+  </div>
+
+
+</div>
+
+<!-- Drill Modal -->
+<div class="modal-overlay" id="drillModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="drillTitle">下钻明细</h3>
+      <button class="modal-close" onclick="closeDrill()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" class="modal-search" id="drillSearch" placeholder="搜索..." oninput="renderDrill()"/>
+      <div id="drillTableContent"></div>
+      <div class="drill-pagination" id="drillPagination"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('token');
+if (!TOKEN) location.href = '/';
+
+let isAdmin = false;
+let allDepts = [];
+let charts = {};
+let drillData = null;
+let drillPage = 1;
+const DRILL_PAGE_SIZE = 20;
+
+// Register datalabels plugin globally
+Chart.register(ChartDataLabels);
+
+// 交叉表缓存（不受筛选器影响，只加载一次）
+let crossTableData = null;
+
+// ========== Init ==========
+(async function init() {
+  try {
+    const u = await api('/api/user/me');
+    document.getElementById('userName').textContent = u.display_name || u.username;
+    isAdmin = (u.role === 'admin');
+    if (isAdmin) document.getElementById('tabImport').style.display = '';
+  } catch { location.href = '/'; }
+  // 记录页面访问
+  fetch('/api/key-account/visit', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN } }).catch(() => {});
+  await loadDepts();
+  // 交叉表一次性加载（不受筛选器影响）
+  loadCrossTable();
+  loadFillRounds();
+  refreshAll();
+})();
+
+async function api(url, opts = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN, ...opts.headers },
+    ...opts
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({error:'请求失败'})); throw e; }
+  return res.json();
+}
+
+// ========== Departments ==========
+async function loadDepts() {
+  const data = await api('/api/key-account/hardware/depts');
+  allDepts = data.depts;
+  let opts = '<option value="">全部部门</option>';
+  allDepts.forEach(d => { opts += `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`; });
+  document.getElementById('globalDept').innerHTML = opts;
+}
+
+// ========== Refresh All ==========
+function refreshAll() {
+  loadSummary();
+  loadNewCustomers();
+  loadNewCheckins();
+  loadStageDist();
+  loadFunnel();
+  loadStage6();
+  loadWeeklyFillStats();
+}
+
+// ========== KPI Summary ==========
+async function loadSummary() {
+  try {
+    const s = await api('/api/key-account/analytics/summary');
+    document.getElementById('kpi-new').textContent = s.new_customers;
+    document.getElementById('kpi-checked').textContent = s.checked_in;
+    document.getElementById('kpi-checked-sub').textContent =
+      `新客户 ${s.checked_new ?? '—'} 家 · 老客户 ${s.checked_old ?? '—'} 家`;
+    const ratio = s.new_customers > 0 ? (s.checked_new / s.new_customers * 100).toFixed(1) : 0;
+    document.getElementById('kpi-ratio').textContent = ratio + '%';
+    document.getElementById('kpi-conv').textContent = s.conversion + '%';
+    document.getElementById('kpi-review').textContent = s.review_rate + '%';
+  } catch (e) { console.error(e); }
+}
+
+// ========== Chart Helper ==========
+function destroyChart(key) { if (charts[key]) { charts[key].destroy(); charts[key] = null; } }
+function getDept() { return document.getElementById('globalDept').value; }
+
+// ========== Cross Table (全量，不受筛选器影响) ==========
+async function loadCrossTable() {
+  try {
+    crossTableData = await api('/api/key-account/analytics/cross-table');
+    renderCrossNewCustomers();
+    renderCrossNewCheckins();
+  } catch (e) { console.error('cross-table error', e); }
+}
+
+/**
+ * 渲染部门×月份交叉表
+ * @param {string} containerId
+ * @param {object} matrixData   {dept: {month: cnt}}
+ * @param {string[]} months     月份数组
+ * @param {string[]} depts      部门数组
+ * @param {string} colLabel     列标题
+ * @param {object} [secondMatrix] 可选第二行数据 {dept: {month: cnt}}（老客户打点）
+ * @param {string} [mainRowLabel] 主行描述（如"新客户"）
+ * @param {string} [subRowLabel]  次行描述（如"老客户"）
+ */
+function renderCrossTable(containerId, matrixData, months, depts, colLabel, secondMatrix, mainRowLabel, subRowLabel) {
+  if (!months || !months.length) { document.getElementById(containerId).innerHTML = ''; return; }
+  const visibleMonths = months; // 所有月份，不过滤
+  // 格式化月份为 MM月
+  const fmtMonth = m => { const parts = m.split('-'); return parts[1] ? parts[1] + '月' : m; };
+
+  let html = '<table class="cross-table"><thead><tr>';
+  html += `<th>${colLabel}</th>`;
+  visibleMonths.forEach(m => { html += `<th>${fmtMonth(m)}</th>`; });
+  html += '<th>合计</th>';
+  html += '</tr></thead><tbody>';
+
+  // 汇总行（合计）
+  const monthTotalsMain = {};
+  const monthTotalsSub = {};
+  visibleMonths.forEach(m => { monthTotalsMain[m] = 0; monthTotalsSub[m] = 0; });
+
+  depts.forEach(dept => {
+    const mainRow = matrixData[dept] || {};
+    const subRow = secondMatrix ? (secondMatrix[dept] || {}) : null;
+
+    // 主行（新客户 or 全部）
+    let rowTotal = mainRow['__total__'] !== undefined ? mainRow['__total__'] : 0;
+    let rowHtml = `<tr><td>${escapeHtml(dept)}${mainRowLabel ? '<span style="font-size:10px;color:#9ca3af;margin-left:4px">'+mainRowLabel+'</span>' : ''}</td>`;
+    visibleMonths.forEach(m => {
+      const v = mainRow[m] || 0;
+      if (mainRow['__total__'] === undefined) rowTotal += v; // 无 __total__ 时回退到累加
+      monthTotalsMain[m] += v;
+      rowHtml += `<td>${v > 0 ? v : '—'}</td>`;
+    });
+    rowHtml += `<td><strong>${rowTotal > 0 ? rowTotal : '—'}</strong></td>`;
+    rowHtml += '</tr>';
+    html += rowHtml;
+
+    // 副行（老客户，若有）
+    if (secondMatrix) {
+      let subTotal = 0;
+      let subHtml = `<tr class="row-old"><td style="padding-left:20px;font-size:11px;color:#9ca3af">${subRowLabel || '老客户'}</td>`;
+      visibleMonths.forEach(m => {
+        const v = subRow[m] || 0;
+        subTotal += v;
+        monthTotalsSub[m] += v;
+        subHtml += `<td>${v > 0 ? v : ''}</td>`;
+      });
+      subHtml += `<td>${subTotal > 0 ? subTotal : ''}</td>`;
+      subHtml += '</tr>';
+      html += subHtml;
+    }
+  });
+
+  // 合计行
+  let grandTotalMain = 0;
+  let grandTotalSub = 0;
+  // 若有 __total__，用部门 __total__ 累加（更准确，包含月份为空的记录）
+  const hasTotal = depts.some(d => (matrixData[d] || {})['__total__'] !== undefined);
+  if (hasTotal) {
+    depts.forEach(d => { grandTotalMain += (matrixData[d] || {})['__total__'] || 0; });
+  } else {
+    Object.values(monthTotalsMain).forEach(v => { grandTotalMain += v; });
+  }
+  html += '<tr class="total-row"><td>合计</td>';
+  visibleMonths.forEach(m => {
+    const v = monthTotalsMain[m];
+    html += `<td>${v > 0 ? v : '—'}</td>`;
+  });
+  html += `<td>${grandTotalMain}</td></tr>`;
+
+  if (secondMatrix) {
+    html += '<tr class="total-row row-old"><td style="padding-left:20px;font-size:11px">老客户合计</td>';
+    visibleMonths.forEach(m => {
+      const v = monthTotalsSub[m];
+      grandTotalSub += v;
+      html += `<td>${v > 0 ? v : ''}</td>`;
+    });
+    html += `<td>${grandTotalSub > 0 ? grandTotalSub : ''}</td></tr>`;
+  }
+
+  html += '</tbody></table>';
+  document.getElementById(containerId).innerHTML = html;
+}
+
+function renderCrossNewCustomers() {
+  if (!crossTableData) return;
+  const { months, depts, new_customers } = crossTableData;
+  renderCrossTable('tableNewCustomers', new_customers, months, depts, '部门 / 月份');
+}
+
+function renderCrossNewCheckins() {
+  if (!crossTableData) return;
+  const { months, depts, checkins_new, checkins_old, total_checkins } = crossTableData;
+  // 合并新老客户打点（每月新增打点客户数 = 新客户打点 + 老客户打点）
+  const merged = {};
+  for (const dept of depts) {
+    merged[dept] = {};
+    for (const m of months) {
+      const n = (checkins_new?.[dept]?.[m]) || 0;
+      const o = (checkins_old?.[dept]?.[m]) || 0;
+      if (n + o > 0) merged[dept][m] = n + o;
+    }
+    // 注入部门打点总数（与KPI卡片同口径），合计行用此值确保一致
+    merged[dept].__total__ = total_checkins?.[dept] || 0;
+  }
+  renderCrossTable('tableNewCheckins', merged, months, depts, '部门 / 月份');
+}
+
+// ========== Data Aggregation Helper ==========
+// Aggregates API response: if dept is specified, data is [{month, cnt}];
+// if dept is empty, data is [{department, month, cnt}] → aggregate by month
+function aggregateMonthly(res, dept) {
+  const raw = res.data || [];
+  if (dept) {
+    // Already filtered by dept → just pass through
+    return { aggregated: true, rows: raw.map(r => ({ month: r.month, cnt: r.cnt })) };
+  }
+  // Aggregate all departments by month
+  const map = {};
+  raw.forEach(r => {
+    const m = r.month;
+    map[m] = (map[m] || 0) + (r.cnt || 0);
+  });
+  const months = Object.keys(map).sort();
+  return { aggregated: true, rows: months.map(m => ({ month: m, cnt: map[m] })) };
+}
+
+// ========== M1: New Customers Monthly ==========
+async function loadNewCustomers() {
+  const dept = getDept();
+  const params = dept ? '?dept=' + encodeURIComponent(dept) : '';
+  const res = await api('/api/key-account/analytics/new-customers-monthly' + params);
+  const agg = aggregateMonthly(res, dept);
+
+  // 表格不在这里渲染（由 loadCrossTable 全量渲染，不受筛选器影响）
+
+  // Render chart: single bar per month (total)
+  destroyChart('c1');
+  const ctx = document.getElementById('chartNewCustomers').getContext('2d');
+  const labels = agg.rows.map(r => r.month);
+  const values = agg.rows.map(r => r.cnt);
+
+  charts.c1 = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: dept || '全部部门', data: values, backgroundColor: '#3B82F6', borderRadius: 4 }]
+    },
+    options: barOptions(onBarClick('monthly_customers', dept, labels))
+  });
+}
+
+// ========== M2: New Checkins Monthly ==========
+async function loadNewCheckins() {
+  const dept = getDept();
+  const params = dept ? '?dept=' + encodeURIComponent(dept) : '';
+  const res = await api('/api/key-account/analytics/new-checkins-monthly' + params);
+  const agg = aggregateMonthly(res, dept);
+
+  // 表格不在这里渲染（由 loadCrossTable 全量渲染，不受筛选器影响）
+
+  // Render chart: single bar per month (total)
+  destroyChart('c2');
+  const ctx = document.getElementById('chartNewCheckins').getContext('2d');
+  const labels = agg.rows.map(r => r.month);
+  const values = agg.rows.map(r => r.cnt);
+
+  charts.c2 = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: dept || '全部部门', data: values, backgroundColor: '#8B5CF6', borderRadius: 4 }]
+    },
+    options: barOptions(onBarClick('monthly_checkins', dept, labels))
+  });
+}
+
+// ========== M3: Stage Distribution ==========
+let stageLabels = {};
+let fillRounds = []; // available fill rounds for dropdown
+
+async function loadFillRounds() {
+  try {
+    const res = await api('/api/key-account/analytics/fill-rounds');
+    fillRounds = res.rounds || [];
+    const sel = document.getElementById('stageWeek');
+    let opts = '<option value="">全部时间</option>';
+    fillRounds.forEach(r => {
+      // r 是周日日期，向前推 6 天得到周一
+      const sunday = new Date(r + 'T00:00:00');
+      const monday = new Date(sunday);
+      monday.setDate(monday.getDate() - 6);
+      const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+      const label = `${fmt(monday)} - ${fmt(sunday)}`;
+      opts += `<option value="${r}">📅 ${label}</option>`;
+    });
+    sel.innerHTML = opts;
+  } catch (e) { console.error('loadFillRounds error', e); }
+}
+
+function onStageWeekChange() {
+  const week = document.getElementById('stageWeek').value;
+  const label = document.getElementById('stageDistLabel');
+  if (week) {
+    const sunday = new Date(week + 'T00:00:00');
+    const monday = new Date(sunday);
+    monday.setDate(monday.getDate() - 6);
+    const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+    label.textContent = `（${fmt(monday)} - ${fmt(sunday)} · 按周填报阶段）`;
+  } else {
+    label.textContent = '（本财年已打点客户）';
+  }
+  loadStageDist();
+}
+
+async function loadStageDist() {
+  // Load stage labels
+  if (!Object.keys(stageLabels).length) {
+    try {
+      const st = await api('/api/key-account/stages');
+      st.stages.forEach(s => { stageLabels[s.stage_key] = s.stage_name; });
+    } catch {}
+  }
+  const stageKeys = ['1','2','3','4','5','6'];
+
+  const dept = getDept();
+  const params = new URLSearchParams();
+  if (dept) params.append('dept', dept);
+  const week = document.getElementById('stageWeek').value;
+  if (week) params.append('round', week);
+  const qs = params.toString() ? '?' + params.toString() : '';
+  const res = await api('/api/key-account/analytics/stage-distribution' + qs);
+  const raw = res.data || [];
+
+  // Aggregate data
+  let aggregated = {};
+  if (dept) {
+    raw.forEach(r => { aggregated[String(r.checkin_stage)] = (aggregated[String(r.checkin_stage)] || 0) + (r.cnt || 0); });
+  } else {
+    raw.forEach(r => { aggregated[String(r.checkin_stage)] = (aggregated[String(r.checkin_stage)] || 0) + (r.cnt || 0); });
+  }
+
+  // Render summary table
+  let total = 0;
+  let tableHtml = '<table class="summary-table"><thead><tr><th>阶段</th><th style="text-align:center">客户数</th><th style="text-align:center">占比</th></tr></thead><tbody>';
+  stageKeys.forEach(k => {
+    const cnt = aggregated[k] || 0;
+    total += cnt;
+  });
+  stageKeys.forEach(k => {
+    const cnt = aggregated[k] || 0;
+    const pct = total > 0 ? (cnt / total * 100).toFixed(1) : '0.0';
+    const label = stageLabels[k] || ('阶段' + k);
+    tableHtml += `<tr><td>${label}</td><td>${cnt}</td><td>${pct}%</td></tr>`;
+  });
+  tableHtml += `<tr class="total-row"><td>合计</td><td>${total}</td><td>100%</td></tr>`;
+  tableHtml += '</tbody></table>';
+  document.getElementById('tableStages').innerHTML = tableHtml;
+
+  // Render chart: single bar per stage
+  destroyChart('c3');
+  const ctx = document.getElementById('chartStages').getContext('2d');
+  const labels = stageKeys.map(k => stageLabels[k] || ('阶段' + k));
+  const values = stageKeys.map(k => aggregated[k] || 0);
+  const colors = ['#fef9c3','#dbeafe','#dcfce7','#ede9fe','#fff7ed','#f3f4f6'];
+
+  charts.c3 = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: dept || '全部部门',
+        data: values,
+        backgroundColor: ['#eab308','#3B82F6','#10B981','#8B5CF6','#F97316','#9ca3af'],
+        borderRadius: 4
+      }]
+    },
+    options: barOptions(onBarClick('stage', dept, stageKeys))
+  });
+}
+
+// ========== M4: Funnel ==========
+async function loadFunnel() {
+  const dept = getDept();
+  try {
+    const s = await api('/api/key-account/analytics/summary');
+    const params = new URLSearchParams({ page_size: 9999 });
+    if (dept) params.append('dept', dept);
+    const all = await api('/api/key-account/hardware?' + params);
+    const items = all.items || [];
+    const withLent = items.filter(r => r.lent_units > 0).length;
+    const withPurch = items.filter(r => r.purchased_units > 0).length;
+    const withChecked = items.filter(r => r.is_checked_in).length;
+
+    destroyChart('funnel');
+    const ctx = document.getElementById('chartFunnel').getContext('2d');
+    const stages = ['本财年新增', '已打点', '有借用', '有采购'];
+    const values = [s.new_customers, withChecked, withLent, withPurch];
+
+    charts.funnel = new Chart(ctx, {
+      type: 'bar', data: {
+        labels: stages,
+        datasets: [
+          { label:'客户数', data:values, backgroundColor:['#3B82F6','#8B5CF6','#F59E0B','#10B981'],
+            barPercentage:.5, borderRadius:4,
+            datalabels: { display: true, anchor: 'end', align: 'top', color: '#374151', font: { weight: 'bold', size: 12 } } },
+          { label:'转化率%', data:values.map((v,i) => i===0 ? 100 : values[i-1]>0 ? +(v/values[i-1]*100).toFixed(1) : 0),
+            type:'line', borderColor:'#EF4444', backgroundColor:'#EF4444', tension:.3, yAxisID:'y1',
+            datalabels: { display: true, anchor: 'end', align: 'top', color: '#EF4444', font: { weight: 'bold', size: 12 },
+              formatter: v => v + '%' } }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: { legend: { position:'bottom' } },
+        scales: {
+          y: { beginAtZero:true, title:{display:true,text:'客户数'} },
+          y1: { position:'right', beginAtZero:true, max:100, title:{display:true,text:'转化率%'}, grid:{drawOnChartArea:false} }
+        }
+      }
+    });
+  } catch (e) { console.error(e); }
+}
+
+// ========== M5: Stage 6 Detail ==========
+async function loadStage6() {
+  try {
+    const res = await api('/api/key-account/analytics/stage6-detail');
+    const items = res.items;
+    if (!items.length) {
+      document.getElementById('stage6Table').innerHTML = '<div class="empty">暂无阶段6客户</div>';
+      return;
+    }
+    let html = '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+    html += '<th>客户名称</th><th>部门</th><th>顾问</th><th>教室</th><th>借</th><th>采</th><th>原因</th></tr></thead><tbody>';
+    items.forEach(r => {
+      html += `<tr>
+        <td>${escapeHtml(r.customer_name||'')}</td>
+        <td>${escapeHtml(r.department||'')}</td>
+        <td>${escapeHtml(r.owner_name||'')}</td>
+        <td style="text-align:right">${r.classroom_count||0}</td>
+        <td style="text-align:right">${r.lent_units||0}</td>
+        <td style="text-align:right">${r.purchased_units||0}</td>
+        <td>${escapeHtml(r.stage6_no_intent_reason||'')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    document.getElementById('stage6Table').innerHTML = html;
+  } catch (e) { console.error(e); }
+}
+
+// ========== M6: Weekly Fill Stats by City ==========
+async function loadWeeklyFillStats() {
+  try {
+    const week = document.getElementById('fillWeek').value || 'this';
+    const params = week === 'last' ? '?round=last' : '';
+    const res = await api('/api/key-account/analytics/weekly-fill-stats' + params);
+    const items = res.items || [];
+    const round = res.round || '';
+
+    // Format round date to Chinese
+    const roundParts = round.split('-');
+    const roundLabel = roundParts.length === 3
+      ? `${roundParts[0]}年${parseInt(roundParts[1])}月${parseInt(roundParts[2])}日` : round;
+    document.getElementById('weeklyRoundLabel').textContent = `截止 ${roundLabel} · 按城市`;
+
+    if (!items.length) {
+      document.getElementById('weeklyFillTable').innerHTML = '<div class="empty">暂无数据</div>';
+      return;
+    }
+
+    // Calculate totals
+    let totalAll = 0, filledAll = 0, unfilledAll = 0;
+    items.forEach(r => { totalAll += r.total; filledAll += r.filled; unfilledAll += r.unfilled; });
+
+    // Sort by completion rate descending
+    items.sort((a, b) => {
+      const rateA = a.total > 0 ? a.filled / a.total : 0;
+      const rateB = b.total > 0 ? b.filled / b.total : 0;
+      return rateB - rateA;
+    });
+
+    let html = '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+    html += '<th>城市</th><th style="text-align:right">客户总数</th><th style="text-align:right">已填报</th><th style="text-align:right">未填报</th><th style="text-align:right">完成率</th></tr></thead><tbody>';
+
+    items.forEach(r => {
+      const rate = r.total > 0 ? (r.filled / r.total * 100).toFixed(1) : 0;
+      const rateColor = rate >= 80 ? '#10B981' : rate >= 50 ? '#F59E0B' : '#EF4444';
+      html += `<tr>
+        <td><strong>${escapeHtml(r.department||'')}</strong></td>
+        <td style="text-align:right">${r.total}</td>
+        <td style="text-align:right;color:#10B981">${r.filled}</td>
+        <td style="text-align:right;color:#EF4444">${r.unfilled}</td>
+        <td style="text-align:right;font-weight:700;color:${rateColor}">${rate}%</td>
+      </tr>`;
+    });
+
+    // Totals row
+    const overallRate = totalAll > 0 ? (filledAll / totalAll * 100).toFixed(1) : 0;
+    html += `<tr style="background:#e6f1fb;font-weight:700">
+      <td>合计</td>
+      <td style="text-align:right">${totalAll}</td>
+      <td style="text-align:right;color:#10B981">${filledAll}</td>
+      <td style="text-align:right;color:#EF4444">${unfilledAll}</td>
+      <td style="text-align:right;color:#185FA5">${overallRate}%</td>
+    </tr>`;
+
+    html += '</tbody></table></div>';
+    document.getElementById('weeklyFillTable').innerHTML = html;
+  } catch (e) { console.error(e); }
+}
+
+// ========== Chart Options ==========
+function barOptions(onClick) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { font: { size: 11 } } },
+      y: { beginAtZero: true, ticks: { stepSize: 1 } }
+    },
+    onClick
+  };
+}
+
+function onBarClick(type, dept, labels) {
+  return (evt, elements, chart) => {
+    if (!elements.length) return;
+    const i = elements[0].index;
+    const month = labels[i];
+    const d = dept || '';
+    openDrill(type, d, month || '');
+  };
+}
+
+// ========== Drill ==========
+async function openDrill(type, dept, month) {
+  const params = new URLSearchParams({ type, dept });
+  if (month) params.append('month', month);
+  if (type === 'stage') params.append('stagev', month);
+  try {
+    const res = await api('/api/key-account/analytics/drill?' + params);
+    document.getElementById('drillTitle').textContent = res.title || '下钻明细';
+    drillData = res.items || [];
+    drillPage = 1;
+    document.getElementById('drillSearch').value = '';
+    renderDrill();
+    document.getElementById('drillModal').classList.add('show');
+  } catch (e) { console.error(e); }
+}
+
+function closeDrill() { document.getElementById('drillModal').classList.remove('show'); }
+
+function renderDrill() {
+  let items = drillData || [];
+  const q = document.getElementById('drillSearch').value.trim().toLowerCase();
+  if (q) items = items.filter(r => {
+    const fields = ['customer_name','owner_name','department','cnt'];
+    return fields.some(f => String(r[f]||'').toLowerCase().includes(q));
+  });
+
+  const total = items.length;
+  const totalPages = Math.ceil(total / DRILL_PAGE_SIZE) || 1;
+  if (drillPage > totalPages) drillPage = totalPages;
+  const page = items.slice((drillPage - 1) * DRILL_PAGE_SIZE, drillPage * DRILL_PAGE_SIZE);
+
+  let html;
+  if (items.length && items[0].customer_name !== undefined) {
+    html = '<table class="drill-table"><thead><tr>';
+    html += '<th>客户名称</th><th>顾问</th><th>教室</th><th>借用</th><th>采购</th><th>拜访</th><th>商机数</th><th>商机金额</th><th>反馈</th></tr></thead><tbody>';
+    page.forEach(r => {
+      html += `<tr>
+        <td>${escapeHtml(r.customer_name||'')}</td>
+        <td>${escapeHtml(r.owner_name||'')}</td>
+        <td style="text-align:right">${r.classroom_count||0}</td>
+        <td style="text-align:right">${r.lent_units||0}</td>
+        <td style="text-align:right">${r.purchased_units||0}</td>
+        <td style="text-align:right">${r.visit_count||0}</td>
+        <td style="text-align:right">${r.opportunity_count||0}</td>
+        <td style="text-align:right">${r.opportunity_amount ? '¥'+Number(r.opportunity_amount).toLocaleString('zh-CN') : '—'}</td>
+        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.feedback||'')||'—'}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  } else {
+    html = '<table class="drill-table"><thead><tr><th>顾问</th><th style="text-align:right">客户数</th></tr></thead><tbody>';
+    page.forEach(r => {
+      html += `<tr><td>${escapeHtml(r.owner_name||'')}</td><td style="text-align:right;font-weight:600">${r.cnt}</td></tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  document.getElementById('drillTableContent').innerHTML = html;
+  document.getElementById('drillPagination').innerHTML = `
+    <span>共 ${total} 条 | 第 ${drillPage}/${totalPages} 页</span>
+    <div>
+      <button onclick="drillPage=1;renderDrill()" ${drillPage<=1?'disabled':''}>首页</button>
+      <button onclick="drillPage--;renderDrill()" ${drillPage<=1?'disabled':''}>上一页</button>
+      <button onclick="drillPage++;renderDrill()" ${drillPage>=totalPages?'disabled':''}>下一页</button>
+      <button onclick="drillPage=totalPages;renderDrill()" ${drillPage>=totalPages?'disabled':''}>末页</button>
+    </div>`;
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target.id === 'drillModal') closeDrill();
+});
+</script>
+
+</body>
+</html>

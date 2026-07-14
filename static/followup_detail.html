@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>跟进明细库 — 销售工作台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:#F4F6FA;min-height:100vh;color:#222}
+
+/* ====== 顶栏 ====== */
+.topbar{display:flex;align-items:center;background:#fff;padding:0 24px;height:54px;box-shadow:0 1px 4px rgba(0,0,0,.08);position:sticky;top:0;z-index:200}
+.topbar-logo{font-weight:700;font-size:16px;color:#185FA5}
+.topbar-nav{display:flex;gap:4px;margin-left:24px;font-size:13px}
+.topbar-nav a{padding:5px 12px;border-radius:6px;color:#666;text-decoration:none}
+.topbar-nav a:hover{background:#f0f4fa;color:#185FA5}
+.topbar-nav a.active{background:#E6F1FB;color:#185FA5;font-weight:600}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:#888}
+.topbar-right a{color:#185FA5;text-decoration:none}
+
+/* ====== 主体 ====== */
+.page{max-width:1600px;margin:0 auto;padding:20px 20px 60px}
+.page-header{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700;color:#1a2540}
+
+/* Tab 切换 */
+.page-tabs { display:flex; gap:6px; margin-bottom:16px; background:#fff; padding:6px; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.04); align-items:center }
+.page-tabs a {
+  padding:8px 22px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:500;
+  color:#666; transition:all .15s
+}
+.page-tabs a:hover { background:#f0f4fa; color:#185FA5 }
+.page-tabs a.active { background:#E6F1FB; color:#185FA5; font-weight:600 }
+
+/* ====== 筛选栏 ====== */
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-bar select,.filter-bar input{padding:7px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;background:#fff;color:#333;outline:none}
+.filter-bar select:focus,.filter-bar input:focus{border-color:#0F6E56}
+.filter-bar input{flex:1;min-width:180px;max-width:280px}
+
+/* ====== 表格 ====== */
+.table-wrap{background:#fff;border-radius:12px;box-shadow:0 1px 8px rgba(0,0,0,.07);overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl thead tr{background:#0F6E56;color:#fff}
+.tbl th{padding:7px 6px;text-align:center;font-weight:600;white-space:nowrap;font-size:11px}
+.tbl td{padding:6px 6px;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;font-size:12px}
+.tbl tbody tr:hover{background:#f6fdf9}
+.tbl tbody tr:last-child td{border-bottom:none}
+.tbl tbody td:first-child,.tbl thead th:first-child{text-align:left}
+
+/* 客户名列 */
+.tbl .td-name{text-align:left;font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl .td-owner{text-align:left;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 阶段 badge */
+.badge{display:inline-block;padding:1px 5px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer}
+.badge-s1{background:#E3F2FD;color:#1565C0}
+.badge-s2{background:#E8F5E9;color:#2E7D32}
+.badge-s3{background:#FFF8E1;color:#F57F17}
+.badge-s4{background:#FCE4EC;color:#C62828}
+.badge-s5{background:#F3E5F5;color:#6A1B9A}
+.badge-s6{background:#ECEFF1;color:#546E7A}
+.badge-none{background:#f0f0f0;color:#aaa}
+
+/* 打点状态 */
+.checkin-yes{color:#0F6E56;font-size:14px}
+.checkin-no{color:#ccc;font-size:14px}
+
+/* 圈号数字 */
+.circled{font-size:10px;margin-right:1px}
+
+/* 周格子 */
+.week-cell{width:56px;cursor:pointer;position:relative;min-width:56px}
+.week-cell .badge{font-size:10px;padding:1px 4px;line-height:1.4}
+.week-cell:hover{background:#e8f5e9}
+
+/* 数值列 */
+.td-num{text-align:right;font-variant-numeric:tabular-nums;font-size:11px}
+.td-date{font-size:10px;color:#666;white-space:nowrap}
+
+/* 最新阶段列 */
+.latest-stage{text-align:center;min-width:60px}
+
+/* 弹窗 */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.35);z-index:1000;display:none;justify-content:center;align-items:center}
+.modal-overlay.active{display:flex}
+.modal{background:#fff;border-radius:14px;width:600px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18);padding:0}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px 14px;border-bottom:1px solid #f0f0f0;position:sticky;top:0;background:#fff;border-radius:14px 14px 0 0;z-index:1}
+.modal-title{font-size:16px;font-weight:700;color:#1a2540}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#999;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:#f0f0f0}
+.modal-body{padding:18px 24px 24px}
+
+.info-row{display:flex;gap:12px;margin-bottom:10px;font-size:13px}
+.info-label{color:#888;min-width:70px}
+.info-val{font-weight:500;color:#333}
+.feedback-box{background:#f8f9fb;border-radius:8px;padding:12px;font-size:13px;color:#444;line-height:1.6;margin-top:10px;white-space:pre-wrap}
+
+/* 加载 */
+.loading{text-align:center;padding:40px;color:#aaa;font-size:14px}
+
+/* 无数据 */
+.empty-state{text-align:center;padding:60px 20px;color:#aaa}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+
+/* 统计行 */
+.stats-bar{display:flex;gap:20px;margin-bottom:14px;flex-wrap:wrap}
+.stats-bar .stat{font-size:13px;color:#666}
+.stats-bar .stat b{color:#0F6E56}
+
+/* 最新阶段列 */
+.latest-stage{text-align:center}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">销售工作台</div>
+  <nav class="topbar-nav">
+    <a href="/workbench">工作台</a>
+    <a href="/key-account/hardware">重点客户跟进</a>
+  </nav>
+  <div class="topbar-right">
+    <span id="userDisplay"></span>
+    <a href="#" onclick="logout()">退出</a>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-tabs">
+    <a href="/key-account/hardware">📋 填报明细</a>
+    <a href="/key-account/followup-detail" class="active">📊 跟进明细库</a>
+    <a href="/key-account/analytics">📈 数据分析</a>
+    <a href="/key-account/data-import" id="tabImport" style="display:none;">📥 数据导入</a>
+  </div>
+
+  <div class="page-header">
+    <div class="page-title">跟进明细库</div>
+  </div>
+
+  <div class="filter-bar">
+    <select id="filterMonth" multiple size="4" onchange="loadData()" style="min-width:130px;max-height:120px"></select>
+    <select id="filterDept" onchange="onDeptChange()">
+      <option value="">全部部门</option>
+    </select>
+    <select id="filterOwner" onchange="loadData()">
+      <option value="">全部顾问</option>
+    </select>
+    <select id="filterChecked" onchange="loadData()">
+      <option value="">全部打点</option>
+      <option value="1">✔ 已打点</option>
+      <option value="0">○ 未打点</option>
+    </select>
+    <input type="text" id="filterQ" placeholder="搜索客户名称..." onkeyup="if(event.key==='Enter')loadData()"/>
+    <button class="btn btn-secondary btn-sm" onclick="loadData()">🔍 搜索</button>
+  </div>
+
+  <div class="stats-bar" id="statsBar"></div>
+
+  <div class="table-wrap">
+    <table class="tbl" id="mainTable">
+      <thead id="tblHead"></thead>
+      <tbody id="tblBody"></tbody>
+    </table>
+    <div class="loading" id="loading">加载中...</div>
+  </div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">跟进详情</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const STAGE_LABELS = {'1':'零星采购/试用','2':'落地使用','3':'深度应用','4':'价值复盘','5':'政策推送','6':'无意向'};
+const STAGE_BADGE = {'1':'badge-s1','2':'badge-s2','3':'badge-s3','4':'badge-s4','5':'badge-s5','6':'badge-s6'};
+const CIRCLED = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','6':'⑥'};
+
+let currentUser = null;
+let allCustomers = [];
+let weeks = [];
+
+// ========== 初始化 ==========
+async function init() {
+  try {
+    const me = await apiFetch('/api/users/me');
+    if (!me || me.error) { location.href='/'; return; }
+    currentUser = me;
+    document.getElementById('userDisplay').textContent = me.display_name || me.username;
+    if (me.role === 'admin') {
+      document.getElementById('tabImport').style.display = 'inline-block';
+    }
+  } catch(e) { console.error('init user error:', e); }
+
+  // 记录页面访问
+  fetch('/api/key-account/visit', { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).catch(() => {});
+
+  try { await loadDepts(); } catch(e) { console.error('loadDepts error:', e); }
+  try { await buildMonthOptions(); } catch(e) { console.error('buildMonthOptions error:', e); }
+  try { await loadData(); } catch(e) { console.error('loadData error:', e); }
+}
+
+function apiFetch(url, opts={}) {
+  const token = localStorage.getItem('token');
+  return fetch(url, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type':'application/json', ...(opts.headers||{}) }
+  }).then(r => {
+    if (r.status === 401) { localStorage.removeItem('token'); location.href='/'; throw new Error('Unauthorized'); }
+    if (!r.ok) { console.warn('API warning:', r.status, url); }
+    return r.json();
+  });
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  location.href = '/';
+}
+
+async function loadDepts() {
+  const data = await apiFetch('/api/key-account/hardware/depts');
+  const sel = document.getElementById('filterDept');
+  (data.depts || []).forEach(d => {
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d;
+    sel.appendChild(o);
+  });
+}
+
+async function onDeptChange() {
+  // 部门切换后重新加载顾问列表
+  const dept = document.getElementById('filterDept').value;
+  const data = await apiFetch('/api/key-account/hardware/owners?dept=' + encodeURIComponent(dept));
+  const sel = document.getElementById('filterOwner');
+  sel.innerHTML = '<option value="">全部顾问</option>';
+  (data.owners || []).forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o;
+    // 只显示名字部分
+    const short = o.indexOf('-') > 0 ? o.substring(0, o.indexOf('-')) : o;
+    opt.textContent = short;
+    sel.appendChild(opt);
+  });
+  loadData();
+}
+
+function buildMonthOptions() {
+  // 生成从 2026-04 到当前月的选项（支持多选）
+  const sel = document.getElementById('filterMonth');
+  const now = new Date();
+  const months = [];
+  let y = 2026, m = 4;
+  while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth() + 1)) {
+    const key = y + '-' + String(m).padStart(2,'0');
+    months.push(key);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  // 倒序排列（最新在前）
+  months.reverse().forEach(key => {
+    const [yy, mm] = key.split('-');
+    const o = document.createElement('option');
+    o.value = key;
+    o.textContent = yy + '年' + parseInt(mm) + '月';
+    sel.appendChild(o);
+  });
+  // 默认选中当前月
+  const defaultMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  for (const opt of sel.options) {
+    if (opt.value === defaultMonth) opt.selected = true;
+  }
+}
+
+// ========== 加载数据 ==========
+async function loadData() {
+  const monthSel = document.getElementById('filterMonth');
+  const selectedMonths = Array.from(monthSel.selectedOptions).map(o => o.value);
+  const dept = document.getElementById('filterDept').value;
+  const owner = document.getElementById('filterOwner').value;
+  const checked = document.getElementById('filterChecked').value;
+  const q = document.getElementById('filterQ').value.trim();
+
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('tblBody').innerHTML = '';
+
+  // 如果没有选月份，默认用当前月
+  if (!selectedMonths.length) {
+    const now = new Date();
+    const defaultMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    selectedMonths.push(defaultMonth);
+    // 自动勾选当前月
+    for (const opt of monthSel.options) {
+      if (opt.value === defaultMonth) opt.selected = true;
+    }
+  }
+
+  let url = '/api/key-account/followup-detail?';
+  const params = [];
+  if (selectedMonths.length) params.push('months=' + encodeURIComponent(selectedMonths.join(',')));
+  if (dept) params.push('dept=' + encodeURIComponent(dept));
+  if (owner) params.push('owner=' + encodeURIComponent(owner));
+  if (checked) params.push('checked=' + encodeURIComponent(checked));
+  if (q) params.push('q=' + encodeURIComponent(q));
+  url += params.join('&');
+
+  const data = await apiFetch(url);
+
+  // API 错误处理
+  if (!data || data.error) {
+    document.getElementById('tblBody').innerHTML = `<tr><td colspan="${9+weeks.length}"><div class="empty-state"><p style="color:#e53935">⚠ ${esc(data.error || '数据加载失败')}</p></div></td></tr>`;
+    document.getElementById('statsBar').innerHTML = '';
+    document.getElementById('loading').style.display = 'none';
+    return;
+  }
+
+  weeks = data.weeks || [];
+  allCustomers = data.customers || [];
+
+  renderTable();
+  updateStats();
+  document.getElementById('loading').style.display = 'none';
+}
+
+function shortName(owner) {
+  if (!owner) return '—';
+  const idx = owner.indexOf('-');
+  return idx > 0 ? owner.substring(0, idx) : (owner || '—');
+}
+
+// 阶段 badge 文本：③深度应用
+function stageBadgeText(stage) {
+  if (!stage) return '';
+  const circ = CIRCLED[stage] || stage;
+  const name = STAGE_LABELS[stage] || stage;
+  return circ + name;
+}
+
+function renderTable() {
+  // 渲染 thead
+  let th = '<tr>';
+  th += '<th style="min-width:130px">客户名称</th>';
+  th += '<th style="min-width:55px">顾问</th>';
+  th += '<th style="width:36px">打点</th>';
+  th += '<th style="width:40px">教室</th>';
+  th += '<th style="width:38px">借用</th>';
+  th += '<th style="width:38px">采购</th>';
+  th += '<th style="min-width:58px">最近拜访</th>';
+  th += '<th style="min-width:58px">打点日期</th>';
+  th += '<th style="width:40px">打点天数</th>';
+  th += '<th style="min-width:64px">最新阶段</th>';
+  weeks.forEach(w => {
+    th += `<th style="min-width:56px">${w.label}<br><span style="font-weight:400;font-size:9px;color:#c8e6c9">${w.friday.slice(5)}</span></th>`;
+  });
+  th += '</tr>';
+  document.getElementById('tblHead').innerHTML = th;
+
+  // 渲染 tbody
+  if (!allCustomers.length) {
+    document.getElementById('tblBody').innerHTML = `<tr><td colspan="${10+weeks.length}"><div class="empty-state"><div class="icon">📋</div><p>暂无数据</p></div></td></tr>`;
+    return;
+  }
+
+  document.getElementById('tblBody').innerHTML = allCustomers.map(c => {
+    let tr = '<tr>';
+    // 客户名
+    tr += `<td class="td-name" title="${esc(c.customer_name||'')}">${esc(c.customer_name||'—')}</td>`;
+    // 顾问
+    tr += `<td class="td-owner" title="${esc(c.owner_name||'')}">${esc(shortName(c.owner_name))}</td>`;
+    // 打点
+    tr += `<td>${c.is_checked_in ? '<span class="checkin-yes" title="已打点">●</span>' : '<span class="checkin-no" title="未打点">○</span>'}</td>`;
+    // 教室数量
+    const cr = (c.classroom_count || 0);
+    tr += `<td class="td-num" title="教室数">${cr > 0 ? cr : '—'}</td>`;
+    // 借用台数
+    const lu = (c.lent_units || 0);
+    tr += `<td class="td-num" title="借用台数">${lu > 0 ? lu : ''}</td>`;
+    // 采购台数
+    const pu = (c.purchased_units || 0);
+    tr += `<td class="td-num" title="采购台数">${pu > 0 ? pu : ''}</td>`;
+    // 最近拜访
+    tr += `<td class="td-date" title="${esc(c.last_visit_date||'')}">${fmtDateShort(c.last_visit_date)}</td>`;
+    // 打点日期
+    tr += `<td class="td-date" title="${esc(c.checkin_date||'')}">${fmtDateShort(c.checkin_date)}</td>`;
+    // 打点天数
+    tr += `<td class="td-num" title="今天−打点日期">${calcCheckinDays(c.checkin_date)}</td>`;
+    // 最新阶段（移到打点天数后面）
+    const ls = c.latest_stage || '';
+    tr += `<td class="latest-stage">${ls ? `<span class="badge ${STAGE_BADGE[ls]||'badge-none'}" title="${STAGE_LABELS[ls]||ls}">${esc(stageBadgeText(ls))}</span>` : '<span style="color:#ddd">—</span>'}</td>`;
+    // 每周
+    weeks.forEach(w => {
+      const log = (c.weeks||{})[w.friday];
+      if (log && log.stage) {
+        const cls = STAGE_BADGE[log.stage] || 'badge-none';
+        const lbl = STAGE_LABELS[log.stage] || log.stage;
+        const blocker = log.has_blocker ? ' ⚠' : '';
+        tr += `<td class="week-cell" onclick="showDetail(${c.id},'${w.friday}')" title="${lbl}">`;
+        tr += `<span class="badge ${cls}">${esc(stageBadgeText(log.stage))}</span>${blocker}</td>`;
+      } else {
+        tr += `<td class="week-cell" style="color:#eee;font-size:11px" title="未填报">—</td>`;
+      }
+    });
+    tr += '</tr>';
+    return tr;
+  }).join('');
+}
+
+// 短日期格式：MM-DD 或 "—"
+function fmtDateShort(d) {
+  if (!d) return '—';
+  const s = String(d);
+  if (s.length >= 10) return s.slice(5,10); // YYYY-MM-DD → MM-DD
+  if (s.length >= 5) return s.slice(0,5);   // MM-DD
+  return s;
+}
+
+// 计算打点天数 = 今天 − 打点日期
+function calcCheckinDays(checkinDate) {
+  if (!checkinDate) return '—';
+  const s = String(checkinDate).slice(0,10); // YYYY-MM-DD
+  const cd = new Date(s);
+  if (isNaN(cd.getTime())) return '—';
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  cd.setHours(0,0,0,0);
+  const diffMs = today - cd;
+  if (diffMs < 0) return '—'; // 未来日期
+  const days = Math.floor(diffMs / 86400000);
+  return days;
+}
+
+function updateStats() {
+  const total = allCustomers.length;
+  const checked = allCustomers.filter(c => c.is_checked_in).length;
+  const hasLatest = allCustomers.filter(c => (c.latest_stage||'')).length;
+  document.getElementById('statsBar').innerHTML =
+    `<span class="stat">共 <b>${total}</b> 条客户</span>` +
+    `<span class="stat">已打点 <b>${checked}</b> 条</span>` +
+    `<span class="stat">有跟进阶段 <b>${hasLatest}</b> 条</span>`;
+}
+
+// ========== 弹窗 ==========
+function showDetail(customerId, friday) {
+  const c = allCustomers.find(x => x.id === customerId);
+  if (!c) return;
+
+  const w = weeks.find(x => x.friday === friday);
+  const weekLabel = w ? w.label + '（' + friday + '）' : friday;
+
+  document.getElementById('modalTitle').textContent = (c.customer_name||'') + ' — ' + weekLabel;
+
+  // 直接从矩阵数据中取（后端已返回全部字段）
+  const log = (c.weeks || {})[friday] || null;
+
+  let html = '';
+
+  // ====== 客户基础信息（始终展示）======
+  html += `<div style="margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f7">`;
+  html += `<div style="font-size:12px;font-weight:700;color:#0F6E56;margin-bottom:10px">📋 客户档案</div>`;
+
+  html += `<div class="info-row"><span class="info-label">客户</span><span class="info-val">${esc(c.customer_name||'—')}</span></div>`;
+  html += `<div class="info-row"><span class="info-label">顾问</span><span class="info-val">${esc(c.owner_name||'—')}</span></div>`;
+  html += `<div class="info-row"><span class="info-label">部门</span><span class="info-val">${esc(c.department||'—')}</span></div>`;
+  // 业务数据
+  html += `<div class="info-row"><span class="info-label">教室数量</span><span class="info-val">${c.classroom_count || 0}</span></div>`;
+  html += `<div class="info-row"><span class="info-label">借用台数</span><span class="info-val">${c.lent_units || 0}</span></div>`;
+  html += `<div class="info-row"><span class="info-label">采购台数</span><span class="info-val">${c.purchased_units || 0}</span></div>`;
+  // 拜访
+  html += `<div class="info-row"><span class="info-label">最近拜访</span><span class="info-val">${fmtDateShort(c.last_visit_date) || '无'}</span></div>`;
+  // 打点状态
+  if (c.is_checked_in) {
+    html += `<div class="info-row"><span class="info-label" style="color:#0F6E56">✓ 已打点</span>`;
+    html += `<span class="info-val">${fmtDateShort(c.checkin_date) || ''} / ${calcCheckinDays(c.checkin_date)}天</span></div>`;
+  } else {
+    html += `<div class="info-row"><span class="info-label" style="color:#ccc">○ 未打点</span><span class="info-val"></span></div>`;
+  }
+  // 最新阶段
+  const ls = c.latest_stage || '';
+  if (ls) {
+    html += `<div class="info-row"><span class="info-label">最新阶段</span><span class="info-val"><span class="badge ${STAGE_BADGE[ls]||'badge-none'}">${esc(stageBadgeText(ls))}</span></span></div>`;
+  }
+  html += `</div>`;
+
+  // ====== 填报详情区 ======
+  html += `<div style="margin-bottom:12px;padding:14px;background:#fff;border-radius:10px;border:1px solid #eee">`;
+  html += `<div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:10px">📝 ${weekLabel} 填报详情</div>`;
+
+  if (log && log.stage) {
+    const stageNum = log.stage || '';
+    const stageName = STAGE_LABELS[stageNum] || stageNum;
+    html += `<div class="info-row"><span class="info-label">阶段</span><span class="info-val"><span class="badge ${STAGE_BADGE[stageNum]||'badge-none'}">${esc(stageBadgeText(stageNum) || stageName)}</span></span></div>`;
+    if (log.stage_desc) {
+      html += `<div class="feedback-box" style="background:#f0faf6;border-left:3px solid #0F6E56"><b>阶段描述：</b>\n${esc(log.stage_desc)}</div>`;
+    } else {
+      html += `<div class="info-row"><span class="info-label">阶段描述</span><span class="info-val" style="color:#aaa">未填写</span></div>`;
+    }
+    if (log.feedback) {
+      html += `<div class="feedback-box"><b>客户反馈：</b>\n${esc(log.feedback)}</div>`;
+    } else {
+      html += `<div class="info-row"><span class="info-label">客户反馈</span><span class="info-val" style="color:#aaa">未填写</span></div>`;
+    }
+    if (log.has_blocker) {
+      html += `<div class="feedback-box" style="background:#fff8e1;border-left:3px solid #f57f17;margin-top:8px"><b>⚠ 卡点：</b>\n${esc(log.blocker_detail||'（已标记有卡点）')}</div>`;
+    } else {
+      html += `<div class="info-row"><span class="info-label">卡点</span><span class="info-val" style="color:#0F6E56">无</span></div>`;
+    }
+    if (log.opportunity_status) {
+      html += `<div class="info-row" style="margin-top:6px"><span class="info-label">商机状态</span><span class="info-val">${esc(log.opportunity_status)}</span></div>`;
+    }
+    html += `<div class="info-row" style="margin-top:10px;font-size:11px;color:#999;border-top:1px solid #f5f5f5;padding-top:8px"><span class="info-label">填报人</span><span class="info-val">${esc(log.filled_by||'—')} 于 ${log.filled_at||'—'}</span></div>`;
+  } else {
+    html += `<div style="padding:16px 0;color:#bbb;text-align:center;font-size:13px">
+      <div style="font-size:24px;margin-bottom:6px">📭</div>
+      <p>该周暂无填报记录</p>
+    </div>`;
+
+    // 其他周次有填报时显示快捷跳转
+    const otherWeeks = Object.keys(c.weeks||{}).filter(f => f !== friday && (c.weeks[f]||{}).stage);
+    if (otherWeeks.length > 0) {
+      html += `<div style="margin-top:4px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:11px;color:#888">`;
+      html += `<b style="display:block;margin-bottom:6px">其他周次填报：</b>`;
+      otherWeeks.slice(0,6).forEach(f => {
+        const lw = weeks.find(ww => ww.friday === f);
+        const llbl = lw ? lw.label : f;
+        const sNum = (c.weeks[f]||{}).stage || '';
+        html += `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;background:#f5f5f5;border-radius:4px;cursor:pointer" onclick="showDetail(${customerId},'${f}')">`;
+        html += `${llbl}：${sNum ? esc(stageBadgeText(sNum)) : '—'}`;
+        html += `</span>`;
+      });
+      if (otherWeeks.length > 6) {
+        html += `<span style="color:#aaa"> 等${otherWeeks.length}条</span>`;
+      }
+      html += `</div>`;
+    }
+  }
+  html += `</div>`;
+
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+}
+
+// 点击弹窗外区域关闭
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ========== 启动 ==========
+init();
+</script>
+</body>
+</html>

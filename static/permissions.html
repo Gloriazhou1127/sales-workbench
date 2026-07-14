@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>权限管理 - 销售工作台</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background:#f5f6f8; color:#333; min-height:100vh; }
+.page-header { background:#993556; color:#fff; padding:0 24px; height:52px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+.page-header h1 { font-size:17px; font-weight:600; }
+.page-header a { color:#fff; text-decoration:none; font-size:13px; padding:6px 12px; border-radius:6px; transition:background .15s; }
+.page-header a:hover { background:rgba(255,255,255,.15); }
+.page-header .right { display:flex; align-items:center; gap:12px; }
+.page-header .user-info { font-size:13px; opacity:.85; }
+.container { max-width:1100px; margin:0 auto; padding:20px; }
+.card { background:#fff; border-radius:10px; padding:20px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,.04); }
+.card h3 { font-size:15px; font-weight:600; margin-bottom:14px; color:#993556; }
+/* Sub tabs */
+.sub-tabs { display:flex; gap:6px; margin-bottom:16px; background:#fff; padding:4px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.03); }
+.sub-tabs a { padding:7px 16px; border-radius:7px; text-decoration:none; font-size:13px; font-weight:500; color:#666; transition:all .15s; cursor:pointer; }
+.sub-tabs a:hover { background:#f0f4fa; color:#993556; }
+.sub-tabs a.active { background:#FBEAF0; color:#993556; font-weight:600; }
+/* Table */
+.user-table { width:100%; border-collapse:collapse; font-size:13px; }
+.user-table th { text-align:left; padding:10px 8px; border-bottom:2px solid #e8e8e8; color:#666; font-weight:600; white-space:nowrap; }
+.user-table td { padding:7px 8px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+.user-table tr:hover { background:#fdf8f9; }
+.badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:500; }
+.badge-admin { background:#E6F1FB; color:#185FA5; }
+.badge-sales { background:#f0f2f5; color:#555; }
+.badge-city { background:#FAEEDA; color:#854F0B; }
+/* Filter bar */
+.filter-bar { display:flex; gap:12px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+.filter-bar select,.filter-bar input { padding:7px 10px; border:1px solid #d0d5dd; border-radius:6px; font-size:13px; }
+.filter-bar input { width:200px; }
+.btn { padding:7px 16px; border:none; border-radius:6px; font-size:13px; cursor:pointer; font-weight:500; transition:all .15s; }
+.btn-primary { background:#993556; color:#fff; }
+.btn-primary:hover { background:#7a2944; }
+.btn-secondary { background:#f0f2f5; color:#555; }
+.btn-secondary:hover { background:#e0e3e8; }
+.btn-sm { padding:4px 10px; font-size:12px; }
+/* Modal */
+.modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.4); z-index:200; display:flex; align-items:center; justify-content:center; }
+.modal { background:#fff; border-radius:12px; padding:24px; width:440px; max-height:80vh; overflow-y:auto; box-shadow:0 8px 30px rgba(0,0,0,.15); }
+.modal h3 { font-size:16px; margin-bottom:16px; color:#333; }
+.modal .form-group { margin-bottom:14px; display:flex; flex-direction:column; gap:4px; }
+.modal .form-group label { font-size:13px; font-weight:500; color:#555; }
+.modal .form-group input,.modal .form-group select { padding:8px 10px; border:1px solid #d0d5dd; border-radius:6px; font-size:14px; }
+.modal .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+/* Stats */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.stat-card { background:#fff; border-radius:8px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,.03); text-align:center; }
+.stat-card .stat-num { font-size:22px; font-weight:700; }
+.stat-card .stat-label { font-size:12px; color:#888; margin-top:2px; }
+.toggle-row { display:flex; gap:12px; align-items:center; }
+.toggle-row label { display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; }
+.edit-link { color:#185FA5; cursor:pointer; text-decoration:underline; }
+.reset-link { color:#E24B4A; cursor:pointer; text-decoration:underline; margin-left:12px; }
+.pagination { display:flex; gap:8px; justify-content:center; margin-top:16px; align-items:center; }
+.pagination button { padding:6px 14px; border:1px solid #d0d5dd; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; }
+.pagination button:hover { background:#f0f2f5; }
+.pagination button:disabled { opacity:.4; cursor:not-allowed; }
+.pagination span { font-size:13px; color:#666; }
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div>
+    <a href="/workbench" style="font-size:12px;opacity:.8;margin-right:10px;">← 工作台</a>
+    <h1 style="display:inline;">权限管理</h1>
+  </div>
+  <div class="right">
+    <span class="user-info" id="userInfo"></span>
+    <a href="#" onclick="doLogout()">退出</a>
+  </div>
+</div>
+
+<div class="container">
+  <div class="sub-tabs">
+    <a class="active" id="tabUsers" onclick="switchTab('users')">👥 用户账号</a>
+    <a id="tabOrg" onclick="switchTab('org')">🏢 组织架构</a>
+    <a id="tabKeyAccount" onclick="switchTab('key-account')">📊 重点客户跟进权限</a>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="stat-num" id="statTotal">-</div><div class="stat-label">总用户数</div></div>
+    <div class="stat-card"><div class="stat-num" id="statAdmin">-</div><div class="stat-label">管理员</div></div>
+    <div class="stat-card"><div class="stat-num" id="statL3">-</div><div class="stat-label">三级负责人</div></div>
+    <div class="stat-card"><div class="stat-num" id="statL4">-</div><div class="stat-label">四级负责人</div></div>
+  </div>
+
+  <!-- Users Tab -->
+  <div id="panelUsers">
+    <div class="filter-bar">
+      <input type="text" id="userSearch" placeholder="搜索姓名/登录名..." oninput="renderUserTable()">
+      <select id="roleFilter" onchange="renderUserTable()">
+        <option value="">全部角色</option>
+        <option value="admin">管理员</option>
+        <option value="user">普通用户</option>
+      </select>
+      <select id="leaderFilter" onchange="renderUserTable()">
+        <option value="">全部负责人类别</option>
+        <option value="l3">三级负责人</option>
+        <option value="l4">四级负责人</option>
+        <option value="none">非负责人</option>
+      </select>
+      <button class="btn btn-primary" onclick="showEditUser()" style="margin-left:auto;">+ 添加用户</button>
+      <button class="btn btn-secondary" onclick="reimportRoster()">📥 同步花名册</button>
+    </div>
+
+    <div class="card" style="overflow-x:auto;">
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>登录名</th>
+            <th>姓名</th>
+            <th>邮箱</th>
+            <th>角色</th>
+            <th>多角色</th>
+            <th>三级组织</th>
+            <th>四级组织</th>
+            <th>L3负责人</th>
+            <th>L4负责人</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="userBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="userPagination"></div>
+  </div>
+
+  <!-- Org Tab -->
+  <div id="panelOrg" style="display:none;">
+    <div class="filter-bar">
+      <select id="orgLevel" onchange="renderOrgView()">
+        <option value="L3">三级组织</option>
+        <option value="L4">四级组织</option>
+      </select>
+    </div>
+    <div class="card" id="orgContent">加载中...</div>
+  </div>
+
+  <!-- Key Account Permission Tab -->
+  <div id="panelKeyAccount" style="display:none;">
+    <div class="card">
+      <h3>📊 重点客户跟进 — 权限说明</h3>
+      <div style="padding:16px;background:#fafbfc;border-radius:8px;line-height:2;font-size:14px;">
+        <p><strong>权限层级：</strong></p>
+        <p>🔹 <strong>销售顾问</strong>：仅能看到自己名下的客户（owner_name = 自己）</p>
+        <p>🔹 <strong>四级组织负责人 / 城市管理</strong>：能看到自己 + 所有四级组织下属的客户</p>
+        <p>🔹 <strong>三级组织负责人</strong>：能看到自己 + 所有三级组织下属的客户</p>
+        <p>🔹 <strong>管理员</strong>：能看到全部客户</p>
+        <p style="margin-top:12px;color:#888;font-size:12px;">权限数据来源于花名册中的"三级组织负责人"和"四级组织负责人"字段，系统自动计算。</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h3>组织负责人列表</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <h4 style="font-size:14px;color:#185FA5;margin-bottom:8px;">三级组织负责人 (共 <span id="l3Count">-</span> 人)</h4>
+          <div id="l3List" style="max-height:400px;overflow-y:auto;"></div>
+        </div>
+        <div>
+          <h4 style="font-size:14px;color:#0F6E56;margin-bottom:8px;">四级组织负责人 (共 <span id="l4Count">-</span> 人)</h4>
+          <div id="l4List" style="max-height:400px;overflow-y:auto;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" id="editModal" style="display:none;">
+  <div class="modal">
+    <h3 id="editModalTitle">编辑用户</h3>
+    <form id="editForm" onsubmit="saveUser(event)">
+      <input type="hidden" id="editUserId">
+      <div class="form-group"><label>登录名</label><input id="editUsername" readonly style="background:#f5f5f5;color:#999;"></div>
+      <div class="form-group"><label>姓名</label><input id="editDisplayName"></div>
+      <div class="form-group"><label>角色（兼容旧版）</label><select id="editRole"><option value="user">普通用户</option><option value="admin">管理员</option></select></div>
+      <div class="form-group"><label>多角色（逗号分隔）</label><input id="editRoles" placeholder="销售顾问,城市管理,管理员"></div>
+      <div class="form-group"><label>公司邮箱</label><input id="editEmail" type="email" placeholder="用于密码重置"></div>
+      <div class="form-group"><label>三级组织</label><input id="editDeptL3"></div>
+      <div class="form-group"><label>四级组织</label><input id="editDeptL4"></div>
+      <div class="toggle-row">
+        <label><input type="checkbox" id="editIsL3"> 三级负责人</label>
+        <label><input type="checkbox" id="editIsL4"> 四级负责人</label>
+      </div>
+      <div class="form-group"><label>新密码（留空不修改）</label><input id="editPassword" type="password" placeholder="留空不修改密码"></div>
+      <div class="form-group"><label>状态</label><select id="editEnabled"><option value="1">启用</option><option value="0">停用</option></select></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+var token = localStorage.getItem('token');
+var allUsers = [];
+var currentUser = null;
+var currentTab = 'users';
+var pageSize = 20;
+var currentPage = 1;
+
+async function checkAuth() {
+  if (!token) { window.location.href = '/'; return; }
+  try {
+    var res = await fetch('/api/user/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error();
+    currentUser = await res.json();
+    document.getElementById('userInfo').textContent = currentUser.display_name;
+    if (currentUser.role !== 'admin') {
+      document.body.innerHTML = '<div style="text-align:center;padding:100px 20px;"><h2>🔒 权限不足</h2><p style="color:#999;">仅管理员可访问权限管理</p><a href="/workbench" style="color:#185FA5;">返回工作台</a></div>';
+      return;
+    }
+    await loadUsers();
+  } catch(e) {
+    localStorage.removeItem('token');
+    window.location.href = '/';
+  }
+}
+
+async function loadUsers() {
+  try {
+    var res = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
+    var data = await res.json();
+    allUsers = data.users || [];
+    updateStats();
+    renderUserTable();
+    renderOrgView();
+    updateKeyAccountView();
+  } catch(e) {
+    console.error('Failed to load users:', e);
+  }
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = allUsers.length;
+  document.getElementById('statAdmin').textContent = allUsers.filter(u => u.role === 'admin').length;
+  document.getElementById('statL3').textContent = allUsers.filter(u => u.is_l3_leader).length;
+  document.getElementById('statL4').textContent = allUsers.filter(u => u.is_l4_leader).length;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.sub-tabs a').forEach(a => a.classList.remove('active'));
+  document.getElementById('tab' + (tab === 'users' ? 'Users' : tab === 'org' ? 'Org' : 'KeyAccount')).classList.add('active');
+  document.getElementById('panelUsers').style.display = tab === 'users' ? 'block' : 'none';
+  document.getElementById('panelOrg').style.display = tab === 'org' ? 'block' : 'none';
+  document.getElementById('panelKeyAccount').style.display = tab === 'key-account' ? 'block' : 'none';
+  document.getElementById('statsRow').style.display = tab !== 'key-account' ? 'grid' : 'none';
+  if (tab === 'key-account') updateKeyAccountView();
+}
+
+function renderUserTable() {
+  var search = (document.getElementById('userSearch').value || '').toLowerCase();
+  var roleFilter = document.getElementById('roleFilter').value;
+  var leaderFilter = document.getElementById('leaderFilter').value;
+  var filtered = allUsers.filter(function(u) {
+    if (search && u.username.toLowerCase().indexOf(search) === -1 && (u.display_name||'').toLowerCase().indexOf(search) === -1) return false;
+    if (roleFilter && u.role !== roleFilter) return false;
+    if (leaderFilter === 'l3' && !u.is_l3_leader) return false;
+    if (leaderFilter === 'l4' && !u.is_l4_leader) return false;
+    if (leaderFilter === 'none' && (u.is_l3_leader || u.is_l4_leader)) return false;
+    return true;
+  });
+  var totalPage = Math.ceil(filtered.length / pageSize);
+  if (currentPage > totalPage) currentPage = totalPage || 1;
+  var start = (currentPage - 1) * pageSize;
+  var page = filtered.slice(start, start + pageSize);
+  var html = '';
+  if (page.length === 0) {
+    html = '<tr><td colspan="11" style="text-align:center;padding:30px;color:#999;">暂无匹配用户</td></tr>';
+  } else {
+    page.forEach(function(u) {
+      var rolesArr = (u.roles || '').split(',').filter(Boolean);
+      var roleBadges = rolesArr.map(function(r) {
+        var cls = r === '管理员' ? 'badge-admin' : r === '城市管理' ? 'badge-city' : 'badge-sales';
+        return '<span class="badge ' + cls + '">' + r + '</span>';
+      }).join(' ');
+      if (!roleBadges) roleBadges = u.role === 'admin' ? '<span class="badge badge-admin">管理员</span>' : '<span class="badge badge-sales">普通用户</span>';
+      var leaderBadges = [];
+      if (u.is_l3_leader) leaderBadges.push('<span class="badge badge-admin">L3</span>');
+      if (u.is_l4_leader) leaderBadges.push('<span class="badge badge-city">L4</span>');
+      html += '<tr>';
+      html += '<td>' + u.username + '</td>';
+      html += '<td>' + u.display_name + '</td>';
+      html += '<td style="font-size:12px;color:#666;">' + (u.email || '-') + '</td>';
+      html += '<td>' + roleBadges + '</td>';
+      html += '<td>' + ((u.roles || '') || '-') + '</td>';
+      html += '<td>' + (u.dept_l3 || '-') + '</td>';
+      html += '<td>' + (u.dept_l4 || '-') + '</td>';
+      html += '<td>' + (u.l3_leader || '-') + '</td>';
+      html += '<td>' + (u.l4_leader || '-') + '</td>';
+      html += '<td>' + (u.enabled ? '启用' : '<span style="color:#c62828;">停用</span>') + '</td>';
+      html += '<td><a class="edit-link" onclick=\'showEditUser(' + JSON.stringify(u).replace(/'/g,"&#39;") + ')\'>编辑</a><a class="reset-link" onclick="resetPassword(' + u.id + ',\'' + u.display_name.replace(/'/g,"\\'") + '\')">重置密码</a></td>';
+      html += '</tr>';
+    });
+  }
+  document.getElementById('userBody').innerHTML = html;
+  var pagHtml = '';
+  pagHtml += '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="currentPage=1;renderUserTable();">首页</button>';
+  pagHtml += '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="currentPage--;renderUserTable();">上一页</button>';
+  pagHtml += '<span>' + currentPage + ' / ' + (totalPage || 1) + '</span>';
+  pagHtml += '<button ' + (currentPage >= totalPage ? 'disabled' : '') + ' onclick="currentPage++;renderUserTable();">下一页</button>';
+  pagHtml += '<button ' + (currentPage >= totalPage ? 'disabled' : '') + ' onclick="currentPage=' + (totalPage || 1) + ';renderUserTable();">末页</button>';
+  document.getElementById('userPagination').innerHTML = pagHtml;
+}
+
+function renderOrgView() {
+  var level = document.getElementById('orgLevel').value;
+  // Build org hierarchy from user lx_leader fields
+  var map = {};
+  allUsers.forEach(function(u) {
+    var leaderKey = level === 'L3' ? u.l3_leader : u.l4_leader;
+    if (!leaderKey || leaderKey === u.display_name) return;
+    if (!map[leaderKey]) map[leaderKey] = [];
+    map[leaderKey].push(u.display_name);
+  });
+  var html = '<table class="user-table"><thead><tr><th>负责人</th><th>下属人数</th><th>下属列表</th></tr></thead><tbody>';
+  var leaders = Object.keys(map).sort();
+  if (leaders.length === 0) {
+    html += '<tr><td colspan="3" style="text-align:center;padding:20px;color:#999;">暂无数据</td></tr>';
+  } else {
+    leaders.forEach(function(l) {
+      var subs = map[l];
+      html += '<tr>';
+      html += '<td style="font-weight:600;">' + l + '</td>';
+      html += '<td>' + subs.length + '</td>';
+      html += '<td style="font-size:12px;color:#666;max-width:500px;">' + subs.join('、') + '</td>';
+      html += '</tr>';
+    });
+  }
+  html += '</tbody></table>';
+  document.getElementById('orgContent').innerHTML = html;
+}
+
+function updateKeyAccountView() {
+  var l3Leaders = allUsers.filter(function(u) { return u.is_l3_leader; });
+  var l4Leaders = allUsers.filter(function(u) { return u.is_l4_leader; });
+  document.getElementById('l3Count').textContent = l3Leaders.length;
+  document.getElementById('l4Count').textContent = l4Leaders.length;
+  var l3Html = l3Leaders.map(function(u) { return '<div style="padding:4px 0;font-size:13px;">• ' + u.display_name + ' <span style="font-size:11px;color:#999;">(' + u.username + ')</span></div>'; }).join('');
+  var l4Html = l4Leaders.map(function(u) { return '<div style="padding:4px 0;font-size:13px;">• ' + u.display_name + ' <span style="font-size:11px;color:#999;">(' + u.username + ')</span></div>'; }).join('');
+  document.getElementById('l3List').innerHTML = l3Html || '<div style="color:#999;">暂无</div>';
+  document.getElementById('l4List').innerHTML = l4Html || '<div style="color:#999;">暂无</div>';
+}
+
+function showEditUser(userData) {
+  var u = userData || { username: '', display_name: '', role: 'user', roles: '', dept_l3: '', dept_l4: '', is_l3_leader: 0, is_l4_leader: 0, enabled: 1, l3_leader: '', l4_leader: '', id: '' };
+  var isNew = !u.id;
+  document.getElementById('editUserId').value = u.id || '';
+  document.getElementById('editUsername').value = u.username || '';
+  document.getElementById('editUsername').readOnly = !isNew;
+  document.getElementById('editUsername').style.background = isNew ? '#fff' : '#f5f5f5';
+  document.getElementById('editUsername').style.color = isNew ? '#333' : '#999';
+  document.getElementById('editDisplayName').value = u.display_name || '';
+  document.getElementById('editRole').value = u.role || 'user';
+  document.getElementById('editRoles').value = u.roles || '';
+  document.getElementById('editEmail').value = u.email || '';
+  document.getElementById('editDeptL3').value = u.dept_l3 || '';
+  document.getElementById('editDeptL4').value = u.dept_l4 || '';
+  document.getElementById('editIsL3').checked = u.is_l3_leader == 1;
+  document.getElementById('editIsL4').checked = u.is_l4_leader == 1;
+  document.getElementById('editPassword').value = '';
+  document.getElementById('editEnabled').value = u.enabled ? '1' : '0';
+  document.getElementById('editModalTitle').textContent = u.id ? '编辑用户' : '添加用户';
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+
+document.getElementById('editModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+async function saveUser(e) {
+  e.preventDefault();
+  var id = document.getElementById('editUserId').value;
+  var isNew = !id;
+  var data = {
+    role: document.getElementById('editRole').value,
+    roles: document.getElementById('editRoles').value,
+    display_name: document.getElementById('editDisplayName').value,
+    email: (document.getElementById('editEmail').value || '').trim(),
+    dept_l3: document.getElementById('editDeptL3').value,
+    dept_l4: document.getElementById('editDeptL4').value,
+    is_l3_leader: document.getElementById('editIsL3').checked ? 1 : 0,
+    is_l4_leader: document.getElementById('editIsL4').checked ? 1 : 0,
+    enabled: parseInt(document.getElementById('editEnabled').value),
+  };
+  if (isNew) data.username = document.getElementById('editUsername').value;
+  var pwd = document.getElementById('editPassword').value;
+  if (pwd) data.password = pwd;
+
+  try {
+    var res = await fetch(isNew ? '/api/admin/users' : '/api/admin/users/' + id, {
+      method: isNew ? 'POST' : 'PUT',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (res.ok) {
+      closeModal();
+      await loadUsers();
+    } else {
+      var err = await res.json();
+      alert('保存失败: ' + (err.error || '未知错误'));
+    }
+  } catch(e) {
+    alert('网络错误: ' + e.message);
+  }
+}
+
+async function reimportRoster() {
+  if (!confirm('确定要从花名册重新同步所有用户吗？这将更新现有用户的组织关系和权限。')) return;
+  try {
+    var res = await fetch('/api/admin/users/import-roster', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    var data = await res.json();
+    alert('同步完成！新增 ' + data.added + ' 人，更新 ' + data.updated + ' 人，错误 ' + data.errors + ' 人');
+    await loadUsers();
+  } catch(e) {
+    alert('同步失败: ' + e.message);
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('token');
+  window.location.href = '/';
+}
+
+async function resetPassword(userId, displayName) {
+  if (!confirm('确定要重置用户「' + displayName + '」的密码吗？系统将生成随机新密码。')) return;
+  try {
+    var res = await fetch('/api/admin/users/' + userId + '/reset-password', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    var data = await res.json();
+    if (res.ok) {
+      showToast('✅ ' + data.message);
+    } else {
+      showToast('❌ 重置失败: ' + (data.error || '未知错误'));
+    }
+  } catch(e) {
+    showToast('❌ 网络错误: ' + e.message);
+  }
+}
+
+function showToast(msg) {
+  var existing = document.getElementById('toast');
+  if (existing) existing.remove();
+  var div = document.createElement('div');
+  div.id = 'toast';
+  div.textContent = msg;
+  Object.assign(div.style, {
+    position: 'fixed', top: '72px', left: '50%', transform: 'translateX(-50%)',
+    background: '#1a1a1a', color: '#fff', padding: '12px 24px', borderRadius: '8px',
+    fontSize: '14px', zIndex: '9999', boxShadow: '0 4px 20px rgba(0,0,0,.2)',
+    maxWidth: '90vw', textAlign: 'center', lineHeight: '1.5',
+    transition: 'opacity .3s', opacity: '1'
+  });
+  document.body.appendChild(div);
+  setTimeout(function() { div.style.opacity = '0'; setTimeout(function() { div.remove(); }, 300); }, 4000);
+}
+
+checkAuth();
+</script>
+</body>
+</html>

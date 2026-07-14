@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>销售工作台 - 登录</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .login-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 40px 36px;
+    width: 400px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .login-box h1 {
+    font-size: 22px; font-weight: 500; color: #1a1a1a;
+    text-align: center; margin-bottom: 6px;
+  }
+  .login-box .subtitle {
+    font-size: 13px; color: #999;
+    text-align: center; margin-bottom: 28px;
+  }
+  .form-group { margin-bottom: 18px; }
+  .form-group label {
+    display: block; font-size: 13px; color: #555; margin-bottom: 6px;
+  }
+  .form-group select,
+  .form-group input {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd;
+    border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s;
+    background: #fff;
+  }
+  .form-group select:focus,
+  .form-group input:focus { border-color: #378ADD; }
+  .form-group select { cursor: pointer; appearance: auto; }
+  .form-group .hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+  .remember-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
+  }
+  .remember-row input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+  .remember-row label { font-size: 13px; color: #666; cursor: pointer; user-select: none; }
+  .btn {
+    width: 100%; padding: 11px; background: #378ADD; color: #fff;
+    border: none; border-radius: 8px; font-size: 15px; cursor: pointer;
+    font-weight: 500; transition: background 0.2s;
+  }
+  .btn:hover { background: #185FA5; }
+  .btn:disabled { background: #a0c4e8; cursor: not-allowed; }
+  .error-msg {
+    color: #E24B4A; font-size: 13px; text-align: center;
+    margin-top: 14px; display: none;
+  }
+  .forgot-row {
+    text-align: right; margin-top: -8px; margin-bottom: 16px;
+  }
+  .forgot-link {
+    font-size: 12px; color: #378ADD; cursor: pointer;
+    text-decoration: none; transition: opacity .15s;
+  }
+  .forgot-link:hover { opacity: .7; }
+
+  /* Forgot Password Modal */
+  .fp-overlay {
+    position: fixed; top:0; left:0; right:0; bottom:0;
+    background:rgba(0,0,0,.4); z-index:1000;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; visibility:hidden; transition:all .2s;
+  }
+  .fp-overlay.show { opacity:1; visibility:visible; }
+  .fp-modal {
+    background:#fff; border-radius:14px; padding:28px 26px;
+    width:400px; max-width:92vw; box-shadow:0 12px 40px rgba(0,0,0,.18);
+    transform:scale(.95); transition:transform .25s;
+  }
+  .fp-overlay.show .fp-modal { transform:scale(1); }
+  .fp-modal h3 { font-size:17px; font-weight:600; color:#1a1a1a; margin-bottom:6px; }
+  .fp-modal .fp-desc { font-size:13px; color:#888; margin-bottom:20px; line-height:1.5; }
+  .fp-modal .form-group { margin-bottom:16px; }
+  .fp-modal .form-group label { display:block; font-size:13px; color:#555; margin-bottom:4px; }
+  .fp-modal .form-group input {
+    width:100%; padding:10px 12px; border:1px solid #d0d5dd;
+    border-radius:8px; font-size:14px; outline:none; transition:border-color .2s;
+    box-sizing:border-box;
+  }
+  .fp-modal .form-group input:focus { border-color:#378ADD; }
+  .fp-modal .btn-row { display:flex; gap:10px; justify-content:flex-end; margin-top:4px; }
+  .fp-modal .btn-row button {
+    padding:9px 20px; border-radius:8px; border:none; font-size:13px;
+    cursor:pointer; font-weight:500; transition:all .15s;
+  }
+  .fp-btn-cancel { background:#f0f2f5; color:#555; }
+  .fp-btn-cancel:hover { background:#e0e3e8; }
+  .fp-btn-send { background:#378ADD; color:#fff; }
+  .fp-btn-send:hover { background:#2B6FC8; }
+  .fp-btn-send:disabled { background:#a0c4e8; cursor:not-allowed; }
+  .fp-err { color:#E24B4A; font-size:12px; display:none; margin-top:8px; text-align:center; }
+  .fp-ok { color:#166534; font-size:13px; display:none; text-align:center; margin-top:8px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="login-box">
+  <h1>销售工作台</h1>
+  <p class="subtitle">统一销售工具入口</p>
+  <form id="loginForm">
+    <div class="form-group">
+      <label>角色</label>
+      <select id="roleSelect">
+        <option value="">-- 请选择角色 --</option>
+        <option value="销售顾问">销售顾问</option>
+        <option value="城市管理">城市管理</option>
+        <option value="管理员">管理员</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>用户名</label>
+      <input type="text" id="username" list="usernameList" placeholder="请先选择角色，或直接输入" autocomplete="off" required>
+      <datalist id="usernameList"></datalist>
+      <div class="hint" id="userHint"></div>
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password" required>
+    </div>
+    <div class="remember-row">
+      <input type="checkbox" id="rememberPwd">
+      <label for="rememberPwd">记住密码</label>
+    </div>
+    <div class="forgot-row"><a class="forgot-link" onclick="showForgotPwd()">忘记密码？</a></div>
+    <button type="submit" class="btn" id="loginBtn">登 录</button>
+    <p class="error-msg" id="errorMsg"></p>
+  </form>
+</div>
+<script>
+const form = document.getElementById('loginForm');
+const errorMsg = document.getElementById('errorMsg');
+const btn = document.getElementById('loginBtn');
+const roleSelect = document.getElementById('roleSelect');
+const usernameInput = document.getElementById('username');
+const usernameList = document.getElementById('usernameList');
+const passwordInput = document.getElementById('password');
+const rememberPwd = document.getElementById('rememberPwd');
+const userHint = document.getElementById('userHint');
+
+// ===== 角色切换 → 加载用户名列表 =====
+roleSelect.addEventListener('change', async () => {
+  const role = roleSelect.value;
+  usernameList.innerHTML = '';
+  userHint.textContent = '';
+
+  if (!role) {
+    usernameInput.placeholder = '请先选择角色';
+    return;
+  }
+
+  usernameInput.placeholder = '加载中...';
+  try {
+    const resp = await fetch(`/api/users/by-role?role=${encodeURIComponent(role)}`);
+    const data = await resp.json();
+    const users = data.users || [];
+
+    users.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.username;
+      opt.textContent = `${u.display_name} (${u.username})`;
+      usernameList.appendChild(opt);
+    });
+
+    userHint.textContent = `共 ${users.length} 人，可输入筛选`;
+    usernameInput.placeholder = '输入姓名或账号搜索';
+  } catch (err) {
+    usernameInput.placeholder = '加载失败，可手动输入';
+  }
+});
+
+// ===== 记住密码逻辑 =====
+const STORAGE_KEY = 'savedCredentials';
+
+function loadSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved) {
+      usernameInput.value = saved.username || '';
+      passwordInput.value = saved.password || '';
+      rememberPwd.checked = true;
+    }
+  } catch(e) {}
+}
+
+function saveCredentials(username, password) {
+  if (rememberPwd.checked) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ username, password }));
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+// 页面加载时恢复
+loadSaved();
+
+// ===== 登录 =====
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errorMsg.style.display = 'none';
+
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value;
+
+  if (!username || !password) {
+    errorMsg.textContent = '请输入用户名和密码';
+    errorMsg.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '登录中...';
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      saveCredentials(username, password);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      window.location.href = '/workbench';
+    } else {
+      errorMsg.textContent = data.error || '登录失败';
+      errorMsg.style.display = 'block';
+    }
+  } catch (err) {
+    errorMsg.textContent = '网络错误，请重试';
+    errorMsg.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '登 录';
+  }
+});
+
+// 已登录则跳过
+if (localStorage.getItem('token')) {
+  window.location.href = '/workbench';
+}
+</script>
+
+<!-- 忘记密码弹窗 -->
+<div class="fp-overlay" id="fpOverlay">
+  <div class="fp-modal">
+    <h3>重置密码</h3>
+    <p class="fp-desc">输入您的公司邮箱地址，系统将发送新密码到该邮箱。</p>
+    <div class="form-group">
+      <label>公司邮箱</label>
+      <input type="email" id="fpEmail" placeholder="例如: zhangsan@company.com" autocomplete="off">
+    </div>
+    <div class="fp-err" id="fpErr"></div>
+    <div class="fp-ok" id="fpOk"></div>
+    <div class="btn-row">
+      <button type="button" class="fp-btn-cancel" onclick="closeForgotPwd()">取消</button>
+      <button type="button" class="fp-btn-send" id="fpSendBtn" onclick="submitForgotPwd()">发送新密码</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showForgotPwd() {
+  document.getElementById('fpOverlay').classList.add('show');
+  document.getElementById('fpEmail').value = '';
+  document.getElementById('fpErr').style.display = 'none';
+  document.getElementById('fpOk').style.display = 'none';
+  setTimeout(() => document.getElementById('fpEmail').focus(), 200);
+}
+
+function closeForgotPwd() {
+  document.getElementById('fpOverlay').classList.remove('show');
+}
+
+document.getElementById('fpOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeForgotPwd();
+});
+
+async function submitForgotPwd() {
+  var email = document.getElementById('fpEmail').value.trim();
+  var errEl = document.getElementById('fpErr');
+  var okEl = document.getElementById('fpOk');
+  var btnEl = document.getElementById('fpSendBtn');
+
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+
+  if (!email) { errEl.textContent = '请输入邮箱地址'; errEl.style.display = 'block'; return; }
+  if (email.indexOf('@') === -1 || email.indexOf('.') === -1) { errEl.textContent = '邮箱格式不正确'; errEl.style.display = 'block'; return; }
+
+  btnEl.disabled = true;
+  btnEl.textContent = '发送中...';
+
+  try {
+    var res = await fetch('/api/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await res.json();
+    if (res.ok) {
+      okEl.textContent = data.message;
+      okEl.style.display = 'block';
+      btnEl.textContent = '已发送';
+      // 3秒后自动关闭
+      setTimeout(closeForgotPwd, 3500);
+    } else {
+      errEl.textContent = data.error || '操作失败，请稍后重试';
+      errEl.style.display = 'block';
+      btnEl.disabled = false;
+      btnEl.textContent = '发送新密码';
+    }
+  } catch(e) {
+    errEl.textContent = '网络错误，请检查网络后重试';
+    errEl.style.display = 'block';
+    btnEl.disabled = false;
+    btnEl.textContent = '发送新密码';
+  }
+}
+</script>
+</body>
+</html>

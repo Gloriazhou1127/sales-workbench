@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据导入 - 重点客户跟进</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background:#f5f6f8; color:#333; min-height:100vh; }
+/* Header */
+.page-header { background:#185FA5; color:#fff; padding:0 24px; height:52px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+.page-header h1 { font-size:17px; font-weight:600; }
+.page-header a { color:#fff; text-decoration:none; font-size:13px; padding:6px 12px; border-radius:6px; transition:background .15s; }
+.page-header a:hover { background:rgba(255,255,255,.15); }
+.page-header .right { display:flex; align-items:center; gap:12px; }
+.page-header .user-info { font-size:13px; opacity:.85; }
+.container { max-width:900px; margin:0 auto; padding:20px; }
+/* Tabs */
+.page-tabs { display:flex; gap:6px; margin-bottom:20px; background:#fff; padding:6px; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.04); align-items:center }
+.page-tabs a { padding:8px 22px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:500; color:#666; transition:all .15s }
+.page-tabs a:hover { background:#f0f4fa; color:#185FA5 }
+.page-tabs a.active { background:#E6F1FB; color:#185FA5; font-weight:600 }
+.page-tabs .tab-hint { margin-left:8px; font-size:11px; color:#aaa }
+/* Card */
+.card { background:#fff; border-radius:10px; padding:24px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,.04); }
+.card h3 { font-size:15px; font-weight:600; margin-bottom:16px; color:#185FA5; }
+/* Upload zone */
+.upload-zone { border:2px dashed #d0d5dd; border-radius:10px; padding:40px 20px; text-align:center; cursor:pointer; transition:all .2s; background:#fafbfc; }
+.upload-zone:hover { border-color:#185FA5; background:#f0f5fb; }
+.upload-zone.dragover { border-color:#185FA5; background:#E6F1FB; }
+.upload-zone .icon { font-size:36px; margin-bottom:10px; }
+.upload-zone .text { font-size:14px; color:#666; margin-bottom:4px; }
+.upload-zone .hint { font-size:12px; color:#999; }
+.upload-zone input[type=file] { display:none; }
+/* Form */
+.form-row { display:flex; gap:16px; margin:16px 0; align-items:flex-end; }
+.form-group { display:flex; flex-direction:column; gap:4px; }
+.form-group label { font-size:13px; font-weight:500; color:#555; }
+.form-group select,.form-group select { padding:8px 12px; border:1px solid #d0d5dd; border-radius:6px; font-size:14px; background:#fff; min-width:180px; }
+.btn { padding:9px 20px; border:none; border-radius:6px; font-size:14px; cursor:pointer; font-weight:500; transition:all .15s; }
+.btn-primary { background:#185FA5; color:#fff; }
+.btn-primary:hover { background:#134b84; }
+.btn-secondary { background:#f0f2f5; color:#555; }
+.btn-secondary:hover { background:#e0e3e8; }
+.btn-success { background:#0F6E56; color:#fff; }
+.btn-success:hover { background:#0b5643; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+/* Result */
+.result-box { padding:16px; border-radius:8px; margin-top:16px; font-size:14px; }
+.result-box.success { background:#e8f5e9; color:#2e7d32; }
+.result-box.error { background:#ffebee; color:#c62828; }
+.result-box.loading { background:#e3f2fd; color:#1565c0; }
+/* Log table */
+.log-table { width:100%; border-collapse:collapse; font-size:13px; }
+.log-table th { text-align:left; padding:10px 8px; border-bottom:2px solid #e8e8e8; color:#666; font-weight:600; }
+.log-table td { padding:8px; border-bottom:1px solid #f0f0f0; }
+.log-table .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:500; }
+.badge-done { background:#e8f5e9; color:#2e7d32; }
+.badge-error { background:#ffebee; color:#c62828; }
+/* Data type cards */
+.data-type-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+.data-type-card { border:2px solid #e8e8e8; border-radius:10px; padding:16px; cursor:pointer; text-align:center; transition:all .15s; }
+.data-type-card:hover { border-color:#185FA5; background:#f8fafe; }
+.data-type-card.active { border-color:#185FA5; background:#E6F1FB; }
+.data-type-card .type-icon { font-size:24px; margin-bottom:6px; }
+.data-type-card .type-name { font-size:14px; font-weight:600; margin-bottom:2px; }
+.data-type-card .type-desc { font-size:11px; color:#888; }
+/* File list */
+.file-type-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+.tag-customer { background:#E6F1FB; color:#185FA5; }
+.tag-lent { background:#e8f5e9; color:#2e7d32; }
+.tag-purchase { background:#fce4ec; color:#c62828; }
+.tag-visit { background:#fff3e0; color:#e65100; }
+.tag-opportunity { background:#f3e5f5; color:#6a1b9a; }
+.tag-unknown { background:#f5f5f5; color:#888; }
+.file-list-table { width:100%; border-collapse:collapse; font-size:13px; }
+.file-list-table th { text-align:left; padding:8px; border-bottom:2px solid #e8e8e8; color:#666; font-weight:600; background:#fafbfc; }
+.file-list-table td { padding:8px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+.file-list-table .btn-sm { font-size:11px; padding:3px 8px; }
+.result-summary { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+.result-summary .summary-item { background:#fff; border-radius:8px; padding:12px 18px; border:1px solid #e8e8e8; }
+.result-summary .summary-item .val { font-size:20px; font-weight:700; }
+.result-summary .summary-item .lbl { font-size:12px; color:#888; }
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div>
+    <a href="/workbench" style="font-size:12px;opacity:.8;margin-right:10px;">← 工作台</a>
+    <h1 style="display:inline;">重点客户跟进</h1>
+  </div>
+  <div class="right">
+    <span class="user-info" id="userInfo"></span>
+    <a href="#" onclick="doLogout()">退出</a>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Tabs -->
+  <div class="page-tabs">
+    <a href="/key-account/hardware">📋 填报明细</a>
+    <a href="/key-account/analytics">📊 数据分析</a>
+    <a href="/key-account/data-import" class="active">📤 数据导入</a>
+  </div>
+
+  <div id="adminOnly" style="display:none;">
+    <!-- Upload Section -->
+    <div class="card">
+      <h3>📤 上传数据文件</h3>
+      <p style="font-size:13px;color:#888;margin-bottom:12px;">支持批量选择文件或选择整个文件夹，系统将根据文件名自动识别数据类型</p>
+
+      <div class="upload-actions" style="display:flex;gap:10px;margin-bottom:12px;">
+        <div class="upload-zone" id="uploadZone" style="flex:1;">
+          <div class="icon">📁</div>
+          <div class="text">点击选择文件或拖拽文件到此处</div>
+          <div class="hint">支持 .xlsx / .csv，可多选，单文件最大 50MB</div>
+          <input type="file" id="fileInput" accept=".xlsx,.csv" multiple>
+        </div>
+        <button class="btn btn-secondary" onclick="document.getElementById('folderInput').click()" style="align-self:center;white-space:nowrap;height:44px;">
+          📂 选择文件夹
+        </button>
+        <input type="file" id="folderInput" accept=".xlsx,.csv" webkitdirectory style="display:none;">
+      </div>
+
+      <!-- 文件列表 -->
+      <div id="fileList" style="display:none;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">已选择的文件（<span id="fileCount">0</span>个）：</div>
+        <table class="log-table" style="width:100%;">
+          <thead>
+            <tr>
+              <th style="width:30%;">文件名</th>
+              <th style="width:15%;">大小</th>
+              <th style="width:20%;">识别类型</th>
+              <th style="width:35%;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="fileListBody"></tbody>
+        </table>
+      </div>
+
+      <div class="form-row" style="justify-content:space-between;">
+        <div class="form-group">
+          <label>导入模式</label>
+          <select id="importMode">
+            <option value="replace">替换全部（推荐）</option>
+            <option value="upsert">更新已存在 + 新增</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="btnUpload" onclick="doUpload()" disabled>
+          开始导入
+        </button>
+      </div>
+
+      <div id="uploadResult"></div>
+    </div>
+
+    <!-- Import History -->
+    <div class="card">
+      <h3>📋 导入历史</h3>
+      <div style="overflow-x:auto;">
+        <table class="log-table" id="logTable">
+          <thead>
+            <tr>
+              <th>文件名</th>
+              <th>类型</th>
+              <th>总行数</th>
+              <th>成功</th>
+              <th>过滤</th>
+              <th>失败</th>
+              <th>导入人</th>
+              <th>状态</th>
+              <th>时间</th>
+            </tr>
+          </thead>
+          <tbody id="logBody">
+            <tr><td colspan="9" style="text-align:center;color:#999;padding:20px;">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="noAccess" class="card" style="display:none;text-align:center;padding:60px 20px;">
+    <div style="font-size:48px;margin-bottom:12px;">🔒</div>
+    <h3 style="color:#999;">仅管理员可访问数据导入功能</h3>
+    <p style="color:#aaa;font-size:13px;margin-top:8px;">如需导入数据，请联系系统管理员</p>
+  </div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('token');
+let currentUser = null;
+let selectedFiles = [];  // [{file, dataType, size}]
+
+const TYPE_LABELS = {
+  customer: '客户清单',
+  lent: '借用明细',
+  purchase: '采购/售卖明细',
+  visit: '拜访记录',
+  opportunity: '商机数据',
+};
+
+function detectType(filename) {
+  var f = filename.toLowerCase();
+  if (/客户/.test(f)) return 'customer';
+  if (/借用/.test(f)) return 'lent';
+  if (/采购|售卖/.test(f)) return 'purchase';
+  if (/拜访/.test(f)) return 'visit';
+  if (/商机/.test(f)) return 'opportunity';
+  return 'customer'; // 默认
+}
+
+function tagClass(type) {
+  return 'file-type-tag tag-' + (TYPE_LABELS[type] ? type : 'unknown');
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+
+// Auth check
+async function checkAuth() {
+  if (!token) { window.location.href = '/'; return; }
+  try {
+    var res = await fetch('/api/user/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error();
+    currentUser = await res.json();
+    document.getElementById('userInfo').textContent = currentUser.display_name + ' (' + (currentUser.role === 'admin' ? '管理员' : '普通用户') + ')';
+
+    if (currentUser.role === 'admin') {
+      document.getElementById('adminOnly').style.display = 'block';
+      loadLogs();
+    } else {
+      document.getElementById('noAccess').style.display = 'block';
+    }
+    // 记录页面访问
+    fetch('/api/key-account/visit', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => {});
+  } catch(e) {
+    localStorage.removeItem('token');
+    window.location.href = '/';
+  }
+}
+
+// Upload zone + folder input
+var uploadZone = document.getElementById('uploadZone');
+var fileInput = document.getElementById('fileInput');
+var folderInput = document.getElementById('folderInput');
+
+uploadZone.addEventListener('click', function() { fileInput.click(); });
+uploadZone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', function(e) { this.classList.remove('dragover'); });
+uploadZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.classList.remove('dragover');
+  addFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', function() { addFiles(this.files); });
+folderInput.addEventListener('change', function() { addFiles(this.files); });
+
+function addFiles(files) {
+  if (!files || files.length === 0) return;
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx' && ext !== 'csv') continue;
+    if (file.size > 50 * 1024 * 1024) {
+      alert('文件 "' + file.name + '" 超过 50MB，已跳过');
+      continue;
+    }
+    // 去重
+    if (selectedFiles.some(function(f) { return f.file.name === file.name && f.file.size === file.size; })) continue;
+    selectedFiles.push({
+      file: file,
+      dataType: detectType(file.name),
+      size: file.size,
+    });
+  }
+  renderFileList();
+}
+
+function renderFileList() {
+  var listDiv = document.getElementById('fileList');
+  var tbody = document.getElementById('fileListBody');
+  var countEl = document.getElementById('fileCount');
+  var btn = document.getElementById('btnUpload');
+
+  if (selectedFiles.length === 0) {
+    listDiv.style.display = 'none';
+    btn.disabled = true;
+    return;
+  }
+
+  listDiv.style.display = 'block';
+  countEl.textContent = selectedFiles.length;
+
+  // 排序：客户清单 → 借用明细 → 其他
+  var orderMap = { customer: 0, lent: 1 };
+  selectedFiles.sort(function(a, b) {
+    var ao = orderMap[a.dataType] != null ? orderMap[a.dataType] : 2;
+    var bo = orderMap[b.dataType] != null ? orderMap[b.dataType] : 2;
+    return ao - bo;
+  });
+
+  var html = '';
+  selectedFiles.forEach(function(f, idx) {
+    html += '<tr>';
+    html += '<td style="word-break:break-all;">' + f.file.name + '</td>';
+    html += '<td>' + fmtSize(f.size) + '</td>';
+    html += '<td><span class="' + tagClass(f.dataType) + '">' + (TYPE_LABELS[f.dataType] || f.dataType) + '</span></td>';
+    html += '<td>';
+    html += '<select class="file-type-select" data-idx="' + idx + '" style="padding:4px 8px;border:1px solid #d0d5dd;border-radius:4px;font-size:12px;margin-right:6px;">';
+    Object.keys(TYPE_LABELS).forEach(function(k) {
+      html += '<option value="' + k + '"' + (f.dataType === k ? ' selected' : '') + '>' + TYPE_LABELS[k] + '</option>';
+    });
+    html += '</select>';
+    html += '<button class="btn btn-secondary btn-sm" onclick="removeFile(' + idx + ')" style="font-size:11px;padding:3px 8px;">✕ 移除</button>';
+    html += '</td>';
+    html += '</tr>';
+  });
+
+  tbody.innerHTML = html;
+  btn.disabled = false;
+
+  // 监听下拉变更
+  tbody.querySelectorAll('.file-type-select').forEach(function(sel) {
+    sel.addEventListener('change', function() {
+      var idx = parseInt(this.dataset.idx);
+      selectedFiles[idx].dataType = this.value;
+      this.parentElement.querySelector('.file-type-tag').className = 'file-type-tag ' + tagClass(this.value);
+      this.parentElement.querySelector('.file-type-tag').textContent = TYPE_LABELS[this.value] || this.value;
+    });
+  });
+}
+
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  renderFileList();
+}
+
+// Upload
+async function doUpload() {
+  if (selectedFiles.length === 0) return;
+
+  var btn = document.getElementById('btnUpload');
+  var resultBox = document.getElementById('uploadResult');
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+  resultBox.innerHTML = '<div class="result-box loading">⏳ 正在批量导入 ' + selectedFiles.length + ' 个文件，请稍候...</div>';
+
+  var mode = document.getElementById('importMode').value;
+  var allFiles = selectedFiles.slice(); // 复制一份，避免迭代时被清空
+
+  for (var i = 0; i < allFiles.length; i++) {
+    var f = allFiles[i];
+    var formData = new FormData();
+    formData.append('files', f.file);
+    formData.append('mode', mode);
+
+    var fileTag = '<div style="margin-top:6px;font-size:13px;">';
+    try {
+      var res = await fetch('/api/data-import/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body: formData
+      });
+      var data = await res.json();
+      if (res.ok && data.success) {
+        var fr = data.files[0];
+        if (fr.error) {
+          fileTag += '❌ ' + fr.file + ' — ' + fr.error;
+        } else {
+          fileTag += '✅ ' + fr.file + ' — ' + fr.success_count + '/' + fr.total_rows + ' 行成功';
+          if (fr.filtered_count > 0) fileTag += '（过滤 ' + fr.filtered_count + ' 行：' + (fr.filtered_reason || '售卖台数≥5') + '）';
+          if (fr.error_count > 0) fileTag += '（' + fr.error_count + ' 行失败）';
+        }
+      } else {
+        fileTag += '❌ ' + f.file.name + ' — ' + (data.error || '导入失败');
+      }
+    } catch(e) {
+      fileTag += '❌ ' + f.file.name + ' — 网络错误：' + e.message;
+    }
+    fileTag += '</div>';
+    resultBox.innerHTML += fileTag;
+  }
+
+  // 汇总
+  var totalAll = allFiles.length;
+  resultBox.innerHTML += '<div class="result-box success" style="margin-top:12px;">✅ 批量导入完成！共处理 ' + totalAll + ' 个文件</div>';
+
+  btn.disabled = false;
+  btn.textContent = '开始导入';
+  selectedFiles = [];
+  renderFileList();
+  loadLogs();
+}
+
+// Load import logs
+async function loadLogs() {
+  try {
+    var res = await fetch('/api/data-import/logs', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    var data = await res.json();
+    var logs = data.logs || [];
+    var html = '';
+    if (logs.length === 0) {
+      html = '<tr><td colspan="9" style="text-align:center;color:#999;padding:20px;">暂无导入记录</td></tr>';
+    } else {
+      logs.forEach(function(log) {
+        var badge = log.error_count > 0 ? 'badge-error' : 'badge-done';
+        var status = log.error_count > 0 ? '部分失败' : '成功';
+        html += '<tr>';
+        html += '<td>' + (log.file_name || '-') + '</td>';
+        html += '<td>' + (TYPE_LABELS[log.data_type] || log.data_type || '-') + '</td>';
+        html += '<td>' + log.row_count + '</td>';
+        html += '<td>' + log.success_count + '</td>';
+        html += '<td>' + (log.filtered_count || 0) + '</td>';
+        html += '<td>' + (log.error_count || 0) + '</td>';
+        html += '<td>' + (log.imported_by || '-') + '</td>';
+        html += '<td><span class="badge ' + badge + '">' + status + '</span></td>';
+        html += '</tr>';
+      });
+    }
+    document.getElementById('logBody').innerHTML = html;
+  } catch(e) {
+    document.getElementById('logBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;padding:20px;">加载失败</td></tr>';
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('token');
+  window.location.href = '/';
+}
+
+checkAuth();
+</script>
+</body>
+</html>

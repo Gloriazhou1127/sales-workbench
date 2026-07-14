@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+<title>硬件打点跟进 — 销售工作台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:#F4F6FA;min-height:100vh;color:#222}
+
+/* ====== 顶栏 ====== */
+.topbar{display:flex;align-items:center;background:#fff;padding:0 24px;height:54px;box-shadow:0 1px 4px rgba(0,0,0,.08);position:sticky;top:0;z-index:200}
+.topbar-logo{font-weight:700;font-size:16px;color:#185FA5}
+.topbar-nav{display:flex;gap:4px;margin-left:24px;font-size:13px}
+.topbar-nav a{padding:5px 12px;border-radius:6px;color:#666;text-decoration:none}
+.topbar-nav a:hover{background:#f0f4fa;color:#185FA5}
+.topbar-nav a.active{background:#E6F1FB;color:#185FA5;font-weight:600}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:#888}
+.topbar-right a{color:#185FA5;text-decoration:none}
+
+/* ====== 主体 ====== */
+.page{max-width:1280px;margin:0 auto;padding:20px 20px 60px}
+.page-header{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700;color:#1a2540}
+.page-header-actions{margin-left:auto;display:flex;gap:10px}
+.btn{padding:8px 18px;border-radius:8px;border:none;font-size:13px;cursor:pointer;font-weight:500;transition:.15s}
+.btn-primary{background:#0F6E56;color:#fff}
+.btn-primary:hover{background:#0d5e49}
+.btn-secondary{background:#fff;color:#555;border:1px solid #ddd}
+.btn-secondary:hover{background:#f4f6fa}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-sync{background:#E1F5EE;color:#0F6E56;border:1px solid #a7e3cc}
+.btn-sync:hover{background:#c8eedd}
+.btn-export{background:#fff;color:#555;border:1px solid #ddd}
+
+/* ====== Tab切换 ====== */
+.page-tabs { display:flex; gap:6px; margin-bottom:16px; background:#fff; padding:6px; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.04); align-items:center }
+.page-tabs a {
+  padding:8px 22px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:500;
+  color:#666; transition:all .15s
+}
+.page-tabs a:hover { background:#f0f4fa; color:#185FA5 }
+.page-tabs a.active { background:#E6F1FB; color:#185FA5; font-weight:600 }
+.page-tabs .tab-hint { margin-left:8px; font-size:11px; color:#aaa }
+
+/* ====== 筛选栏 ====== */
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-bar select,.filter-bar input{padding:7px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;background:#fff;color:#333;outline:none}
+.filter-bar select:focus,.filter-bar input:focus{border-color:#0F6E56}
+.filter-bar input{flex:1;min-width:180px;max-width:280px}
+
+/* ====== 表格 ====== */
+.table-wrap{background:#fff;border-radius:12px;box-shadow:0 1px 8px rgba(0,0,0,.07);overflow-x:auto}
+.tbl{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px}
+.tbl thead tr{background:#0F6E56;color:#fff}
+.tbl th{padding:8px 7px;text-align:left;font-weight:600;white-space:nowrap}
+.tbl td{padding:7px 7px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.tbl tbody tr:hover{background:#f6fdf9}
+.tbl tbody tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:1px 6px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+.badge-checked{background:#dcfce7;color:#166534}
+.badge-unchecked{background:#fee2e2;color:#991b1b}
+.clickable-badge{cursor:pointer;transition:transform .15s}
+.clickable-badge:hover{transform:scale(1.15)}
+.badge-s1{background:#fef9c3;color:#713f12}
+.badge-s2{background:#dbeafe;color:#1e40af}
+.badge-s3{background:#dcfce7;color:#166534}
+.badge-s4{background:#ede9fe;color:#5b21b6}
+.badge-s5{background:#fff7ed;color:#9a3412}
+.badge-s6{background:#f3f4f6;color:#6b7280}
+.visit-days{font-size:12px;color:#888}
+.visit-days.urgent{color:#dc2626;font-weight:600}
+.visit-days.warning{color:#d97706}
+.action-btn{padding:4px 10px;border-radius:6px;border:1px solid #a7e3cc;background:#f0faf5;color:#0F6E56;cursor:pointer;font-size:12px;font-weight:500}
+.action-btn:hover{background:#dcf5eb}
+
+/* ====== 分页 ====== */
+.pagination{display:flex;align-items:center;justify-content:flex-end;padding:14px 16px;gap:8px;font-size:13px;color:#666;position:relative;z-index:101}
+.page-btn{padding:5px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px}
+.page-btn:hover{background:#f0f4fa}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+
+.page-info{color:#888}
+
+/* ====== 居中弹窗 ====== */
+.panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300;display:none;opacity:0;transition:.2s}
+.panel-overlay.show{display:flex;align-items:center;justify-content:center;opacity:1}
+.side-panel{position:fixed;left:50%;top:50%;width:560px;max-width:92vw;max-height:85vh;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.18);z-index:301;display:flex;flex-direction:column;border-radius:14px;transform:translate(-50%,-50%) scale(.95);opacity:0;transition:all .25s ease;overflow:hidden}
+.side-panel.show{transform:translate(-50%,-50%) scale(1);opacity:1}
+.panel-header{padding:18px 24px 14px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.panel-header .panel-title{font-size:16px;font-weight:700;color:#1a2540;flex:1}
+.panel-close{width:30px;height:30px;border-radius:6px;border:none;background:#f4f6fa;cursor:pointer;font-size:16px;color:#666}
+.panel-close:hover{background:#fee2e2;color:#dc2626}
+.panel-body{flex:1;overflow-y:auto;padding:20px 24px;min-height:0}
+.panel-footer{padding:14px 24px;border-top:1px solid #f0f0f0;display:flex;justify-content:flex-end;gap:10px;flex-shrink:0}
+
+/* 面板：客户信息只读 */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;background:#f9fafb;padding:14px;border-radius:10px}
+.info-item .lbl{font-size:11px;color:#999;margin-bottom:3px}
+.info-item .val{font-size:14px;font-weight:600;color:#222}
+.info-item.full{grid-column:1/-1}
+
+/* 面板：手动填写区 */
+.form-section{margin-bottom:18px}
+.form-label{font-size:13px;font-weight:600;color:#333;margin-bottom:7px;display:block}
+.form-label span.required{color:#dc2626;margin-left:2px}
+.form-control{width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#333;outline:none;transition:.15s}
+.form-control:focus{border-color:#0F6E56;box-shadow:0 0 0 3px rgba(15,110,86,.1)}
+.toggle-row{display:flex;align-items:center;gap:10px}
+.toggle{position:relative;display:inline-block;width:42px;height:24px}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:#ccc;border-radius:24px;cursor:pointer;transition:.2s}
+.slider:before{content:"";position:absolute;width:18px;height:18px;bottom:3px;left:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+.slider{background:#0F6E56}
+.toggle input:checked+.slider:before{transform:translateX(18px)}
+.toggle-label{font-size:13px;color:#555}
+.save-toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#0F6E56;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:500;z-index:9999;opacity:0;transition:.3s;pointer-events:none}
+.save-toast.show{opacity:1}
+.save-toast.error{background:#d93025}
+
+/* 空状态 */
+.empty-state{text-align:center;padding:60px 20px;color:#aaa}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px}
+
+/* 同步弹窗 */
+.sync-modal{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:center;justify-content:center}
+.sync-modal.show{display:flex}
+.sync-box{background:#fff;border-radius:14px;padding:32px 36px;width:440px;max-width:96vw;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.sync-box h3{font-size:16px;font-weight:700;margin-bottom:12px}
+.sync-box p{font-size:13px;color:#666;line-height:1.7;margin-bottom:20px}
+.sync-progress{background:#f0f4fa;border-radius:8px;padding:12px 16px;font-size:12px;color:#555;margin-bottom:16px;min-height:44px;white-space:pre-wrap;font-family:monospace}
+.sync-btns{display:flex;justify-content:flex-end;gap:10px}
+
+/* ====== 面板内Tab ====== */
+.panel-tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid #f0f0f0;background:#f9fafb}
+.panel-tabs .ptab{padding:10px 18px;border:none;background:none;font-size:13px;font-weight:500;color:#888;cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.panel-tabs .ptab:hover{color:#0F6E56}
+.panel-tabs .ptab.active{color:#0F6E56;border-bottom-color:#0F6E56;font-weight:600}
+
+/* 填报历史时间线 */
+.followup-timeline{list-style:none;padding:0}
+.followup-timeline li{position:relative;padding:12px 16px 12px 40px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:.15s}
+.followup-timeline li:hover{background:#f6fdf9}
+.followup-timeline li:before{content:"";position:absolute;left:16px;top:18px;width:10px;height:10px;border-radius:50%;background:#0F6E56;border:2px solid #fff;box-shadow:0 0 0 2px #0F6E56}
+.followup-timeline li.locked:before{background:#999;box-shadow:0 0 0 2px #999}
+.followup-timeline li:after{content:"";position:absolute;left:20px;top:30px;bottom:-4px;width:2px;background:#e5e7eb}
+.followup-timeline li:last-child:after{display:none}
+.followup-timeline .ftl-round{font-size:13px;font-weight:600;color:#333}
+.followup-timeline .ftl-stage{font-size:12px;color:#666;margin-top:3px}
+.followup-timeline .ftl-lock{float:right;font-size:11px;color:#999}
+.followup-timeline .ftl-filled{float:right;font-size:11px;color:#888}
+
+/* 填报轮次提示 */
+.round-banner{padding:12px 16px;border-radius:8px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.round-banner.fillable{background:#f0fdf4;border:1px solid #86efac}
+.round-banner.expired{background:#fff7ed;border:1px solid #fdba74}
+.round-banner .rb-icon{font-size:20px}
+.round-banner .rb-text{flex:1}
+.round-banner .rb-title{font-size:14px;font-weight:600}
+.round-banner .rb-sub{font-size:12px;color:#666;margin-top:2px}
+
+@media(max-width:768px){
+  .tbl{font-size:12px}
+  .tbl th,.tbl td{padding:8px 8px}
+  .side-panel{width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="topbar">
+  <span class="topbar-logo">📊 销售工作台</span>
+  <nav class="topbar-nav">
+    <a href="/workbench">工作台首页</a>
+    <a href="/key-account">重点客户跟进</a>
+    <a href="/key-account/hardware" class="active">硬件打点</a>
+  </nav>
+  <div class="topbar-right">
+    <span>👤 <span id="userName">加载中...</span></span>
+    <a href="/" id="logoutBtn">退出</a>
+  </div>
+</div>
+
+<!-- 主体 -->
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">🖥️ 硬件打点跟进</div>
+      <div style="font-size:12px;color:#888;margin-top:3px">1. 本财年新增教室数量≥30的新客户；<br>2. 本财年新增借用的老客户；</div>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn btn-export" onclick="exportCSV()">📥 导出</button>
+    </div>
+  </div>
+
+  <!-- Tab切换 -->
+  <div class="page-tabs">
+    <a href="/key-account/hardware" class="active">📋 填报明细</a>
+    <a href="/key-account/followup-detail">📊 跟进明细库</a>
+    <a href="/key-account/analytics">📈 数据分析</a>
+    <a href="/key-account/data-import" id="tabImport" style="display:none;">📤 数据导入</a>
+  </div>
+
+  <!-- 筛选栏 -->
+  <div class="filter-bar">
+    <select id="filterDept" onchange="applyFilters()">
+      <option value="">全部部门</option>
+    </select>
+    <select id="filterStage" onchange="applyFilters()">
+      <option value="">全部阶段</option>
+      <option value="1">① 零星采购/推进试用</option>
+      <option value="2">② 落地使用&首轮跟进</option>
+      <option value="3">③ 深度应用&每周运维</option>
+      <option value="4">④ 整体复盘&价值量化</option>
+      <option value="5">⑤ 政策推送&促成集采</option>
+      <option value="6">⑥ 客户无采购意向</option>
+    </select>
+    <select id="filterChecked" onchange="applyFilters()">
+      <option value="">打点状态：全部</option>
+      <option value="1">已打点</option>
+      <option value="0">未打点</option>
+    </select>
+    <select id="filterFilled" onchange="applyFilters()">
+      <option value="">填报状态：全部</option>
+      <option value="1">已填报</option>
+      <option value="0">未填报</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="搜索客户名称 / 部门 / 顾问..." oninput="debounceSearch()"/>
+    <button class="btn btn-secondary btn-sm" onclick="resetFilters()">重置</button>
+  </div>
+
+  <!-- 表格 -->
+  <div class="table-wrap">
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>客户名称</th>
+            <th>所属部门</th>
+            <th>客户顾问</th>
+            <th style="text-align:right">教室数</th>
+            <th style="text-align:right">借用台数</th>
+            <th style="text-align:right">采购台数</th>
+            <th style="text-align:right">拜访次数</th>
+            <th style="text-align:right">最近拜访</th>
+            <th style="text-align:right">商机数</th>
+            <th style="text-align:right">商机金额</th>
+            <th>商机状态</th>
+            <th>打点状态</th>
+            <th>打点日期</th>
+            <th>当前阶段</th>
+            <th>上周填报</th>
+            <th>本周填报</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="16"><div class="empty-state"><div class="icon">📋</div><p>暂无数据，请通过数据导入模块上传</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="pagination" style="margin-top:12px">
+    <span class="page-info" id="pageInfo"></span>
+    <button class="page-btn" id="prevBtn" onclick="changePage(-1)" disabled>‹ 上一页</button>
+    <button class="page-btn" id="nextBtn" onclick="changePage(1)" disabled>下一页 ›</button>
+  </div>
+</div>
+
+<!-- 侧滑编辑面板 -->
+<div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+<div class="side-panel" id="sidePanel">
+  <div class="panel-header">
+    <span class="panel-title" id="panelTitle">跟进详情</span>
+    <button class="panel-close" onclick="closePanel()">✕</button>
+  </div>
+
+  <!-- 面板内Tab -->
+  <div class="panel-tabs">
+    <button class="ptab active" id="ptab-current" onclick="switchPanelTab('current')">📝 本周填报</button>
+    <button class="ptab" id="ptab-history" onclick="switchPanelTab('history')">📋 填报历史</button>
+  </div>
+
+  <div class="panel-body">
+    <input type="hidden" id="editingId"/>
+
+    <!-- 客户只读信息 -->
+    <div class="info-grid" id="infoGrid"></div>
+
+    <!-- Tab1: 本周填报 -->
+    <div id="panelTabCurrent">
+      <div class="round-banner" id="roundBanner"></div>
+      <div id="currentFormContainer"></div>
+    </div>
+
+    <!-- Tab2: 填报历史 -->
+    <div id="panelTabHistory" style="display:none">
+      <div id="historyContainer"></div>
+    </div>
+
+  <div class="panel-footer" id="panelFooter">
+    <button class="btn btn-secondary" onclick="closePanel()">取消</button>
+    <button class="btn btn-primary" id="panelSaveBtn" onclick="saveCurrentTab()">💾 保存</button>
+  </div>
+</div>
+
+<!-- 同步弹窗 -->
+<div class="sync-modal" id="syncModal">
+  <div class="sync-box">
+    <h3>🔄 同步 CRM 数据</h3>
+    <p>系统将从销售易拉取以下数据并合并到本地跟进表：<br>
+    • 客户清单（本财年新增，教室数≥30）<br>
+    • 借用明细（本财年新增借用的老客户）<br>
+    • 借用台数 / 采购台数 / 拜访次数 / 商机数量</p>
+    <div class="sync-progress" id="syncLog">等待开始...</div>
+    <div class="sync-btns">
+      <button class="btn btn-secondary" onclick="closeSyncModal()" id="syncCancelBtn">取消</button>
+      <button class="btn btn-primary" onclick="startSync()" id="syncStartBtn">开始同步</button>
+    </div>
+  </div>
+</div>
+
+<!-- 保存提示 -->
+<div class="save-toast" id="saveToast">✅ 保存成功</div>
+
+<!-- 阶段管理弹窗（管理员） -->
+<div class="sync-modal" id="stageModal">
+  <div class="sync-box" style="width:560px">
+    <h3>⚙️ 阶段配置</h3>
+    <p style="font-size:12px;color:#888">修改阶段名称后，所有页面将同步更新</p>
+    <div id="stageEditList" style="margin-bottom:16px"></div>
+    <div class="sync-btns">
+      <button class="btn btn-secondary" onclick="closeStageModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveStages()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<button id="adminStageBtn" class="btn btn-secondary btn-sm" onclick="openStageModal()" style="position:fixed;bottom:20px;right:20px;z-index:100">⚙️ 阶段配置</button>
+
+<script>
+// ========== 全局状态 ==========
+const TOKEN = localStorage.getItem('token');
+if (!TOKEN) location.href = '/';
+
+let currentPage = 1;
+let totalItems   = 0;
+const PAGE_SIZE  = 20;
+let filterDept    = '';
+let filterStage   = '';
+let filterChecked = '';
+let filterFilled  = '';
+let searchQuery   = '';
+let searchTimer;
+let stageLabels   = {};    // stage_key -> stage_name (from API)
+let isAdmin       = false;  // 当前用户是否为管理员
+
+// ========== 初始化 ==========
+(async function init() {
+  try {
+    const u = await apiFetch('/api/user/me');
+    document.getElementById('userName').textContent = u.display_name || u.username;
+    isAdmin = (u.role === 'admin');
+    if (isAdmin) document.getElementById('tabImport').style.display = '';
+  } catch { location.href = '/'; }
+  // 记录页面访问
+  fetch('/api/key-account/visit', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN } }).catch(() => {});
+  await loadStages();
+  await loadDepartments();
+  await loadTable();
+})();
+
+// ========== API 工具 ==========
+async function apiFetch(url, opts = {}) {
+  const res = await fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    cache: 'no-store',
+    ...opts
+  });
+  if (!res.ok) throw await res.json();
+  return res.json();
+}
+
+// ========== 阶段动态加载 ==========
+async function loadStages() {
+  try {
+    const data = await apiFetch('/api/key-account/stages');
+    data.stages.forEach(s => { stageLabels[s.stage_key] = s.stage_name; });
+    // 更新筛选下拉和编辑下拉
+    updateStageSelects();
+  } catch {}
+}
+
+function updateStageSelects() {
+  const opts = ['<option value="">全部阶段</option>'];
+  const editOpts = ['<option value="">—— 请选择 ——</option>'];
+  for (let i = 1; i <= 6; i++) {
+    const label = stageLabels[String(i)] || `阶段${i}`;
+    opts.push(`<option value="${i}">${label}</option>`);
+    editOpts.push(`<option value="${i}">${label}</option>`);
+  }
+  document.getElementById('filterStage').innerHTML = opts.join('');
+  document.getElementById('fStage').innerHTML = editOpts.join('');
+}
+
+// ========== 部门动态加载 ==========
+async function loadDepartments() {
+  try {
+    const data = await apiFetch('/api/key-account/hardware/depts');
+    const opts = ['<option value="">全部部门</option>'];
+    data.depts.forEach(d => { opts.push(`<option value="${esc(d)}">${esc(d)}</option>`); });
+    document.getElementById('filterDept').innerHTML = opts.join('');
+  } catch {}
+}
+
+// ========== 统计卡片 ==========
+// ========== 表格 ==========
+async function loadTable() {
+  const params = new URLSearchParams({
+    page: currentPage, page_size: PAGE_SIZE,
+    stage: filterStage, checked: filterChecked, filled: filterFilled, q: searchQuery, dept: filterDept
+  });
+  try {
+    const data = await apiFetch('/api/key-account/hardware?' + params);
+    totalItems = data.total;
+    renderTable(data.items, data.totals);
+    renderPagination();
+  } catch (e) {
+    console.error('loadTable failed:', e);
+    // 回退页码，避免翻到不存在的页
+    if (currentPage > 1) {
+      currentPage--;
+    }
+    renderPagination();
+    showToast('加载数据失败，请检查网络或刷新页面', 'error');
+  }
+}
+
+const STAGE_LABELS = {
+  '1':'① 零星采购/试用','2':'② 落地&首轮','3':'③ 深度&运维',
+  '4':'④ 复盘&量化','5':'⑤ 政策&集采','6':'⑥ 无意向'
+};
+const STAGE_BADGE  = {
+  '1':'badge-s1','2':'badge-s2','3':'badge-s3','4':'badge-s4','5':'badge-s5','6':'badge-s6'
+};
+
+function renderTable(items, totals) {
+  const tbody = document.getElementById('tableBody');
+    if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="17"><div class="empty-state"><div class="icon">📋</div><p>暂无数据，请通过数据导入模块上传</p></div></td></tr>`;
+    return;
+  }
+  const today = new Date();
+
+  const totalRow = `<tr style="background:#f0faf5;font-weight:700;border-top:2px solid #0F6E56">
+    <td style="color:#0F6E56">📊 合计（${totals.total_records.toLocaleString('zh-CN')}条）</td>
+    <td>—</td>
+    <td>—</td>
+    <td style="text-align:right">${totals.classroom_count.toLocaleString('zh-CN')}</td>
+    <td style="text-align:right">${totals.lent_units.toLocaleString('zh-CN')}</td>
+    <td style="text-align:right">${totals.purchased_units.toLocaleString('zh-CN')}</td>
+    <td style="text-align:right">${totals.visit_count.toLocaleString('zh-CN')}</td>
+    <td>—</td>
+    <td style="text-align:right">${totals.opportunity_count.toLocaleString('zh-CN')}</td>
+    <td style="text-align:right">${totals.opportunity_amount ? '¥' + totals.opportunity_amount.toLocaleString('zh-CN') : '—'}</td>
+    <td>—</td>
+    <td>—</td>
+    <td>—</td>
+    <td>—</td>
+    <td><span class="badge badge-checked">✔ ${totals.last_week_filled}</span> <span class="badge badge-unchecked">⚠ ${totals.last_week_not_filled}</span></td>
+    <td><span class="badge badge-checked">✔ ${totals.this_week_filled}</span> <span class="badge badge-unchecked">⚠ ${totals.this_week_not_filled}</span></td>
+  </tr>`;
+
+  tbody.innerHTML = totalRow + items.map(r => {
+    // 当前阶段：优先取最新填报，否则取主表
+    const latestStage = r.latest_stage || r.checkin_stage;
+    const stageBadge = latestStage
+      ? `<span class="badge ${STAGE_BADGE[latestStage] || ''}">${stageLabels[latestStage] || STAGE_LABELS[latestStage] || latestStage}</span>`
+      : `<span style="color:#ccc;font-size:12px">—</span>`;
+
+    // 本周填报状态
+    const weekBadge = r.this_week_filled
+      ? `<span class="badge badge-checked clickable-badge" onclick="openPanel(${r.id})" title="已填报，点击修改">✔</span>`
+      : `<span class="badge badge-unchecked clickable-badge" onclick="openPanel(${r.id})" title="未填报，点击填报">⚠</span>`;
+
+    // 上周填报（最近一次填报历史，只显示状态）
+    const lastWeekBadge = r.last_week_filled
+      ? `<span class="badge badge-checked clickable-badge" onclick="openPanel(${r.id},'history')" title="上周已填报，点击查看">✔</span>`
+      : `<span class="badge badge-unchecked clickable-badge" onclick="openPanel(${r.id},'history')" title="上周未填报，点击填报">⚠</span>`;
+
+    let visitDaysHtml = '<span style="color:#aaa;font-size:12px">无</span>';
+    if (r.last_visit_date) {
+      const diff = Math.floor((today - new Date(r.last_visit_date)) / 86400000);
+      const cls = diff > 30 ? 'urgent' : diff > 14 ? 'warning' : '';
+      visitDaysHtml = `<span class="visit-days ${cls}">${diff}天前</span>`;
+    }
+
+    return `<tr>
+      <td style="font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.customer_name)}">${esc(r.customer_name) || '—'}</td>
+      <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.department) || '—'}</td>
+      <td title="${esc(r.owner_name) || ''}">${esc(shortName(r.owner_name)) || '—'}</td>
+      <td style="text-align:right;font-weight:600">${r.classroom_count || 0}</td>
+      <td style="text-align:right">${r.lent_units || 0}</td>
+      <td style="text-align:right">${r.purchased_units || 0}</td>
+      <td style="text-align:right">${r.visit_count || 0}</td>
+      <td>${visitDaysHtml}</td>
+      <td style="text-align:right">${r.opportunity_count || 0}</td>
+      <td style="text-align:right;font-weight:500">${r.opportunity_amount ? '¥' + Number(r.opportunity_amount).toLocaleString('zh-CN') : '—'}</td>
+      <td>${esc(r.opportunity_status) || `<span style="color:#ccc">—</span>`}</td>
+      <td>${r.is_checked_in ? '<span class="badge badge-checked" title="已打点">✔</span>' : '<span class="badge badge-unchecked" title="未打点">⚠</span>'}</td>
+      <td>${r.checkin_date || '<span style="color:#ccc">—</span>'}</td>
+      <td>${stageBadge}</td>
+      <td>${lastWeekBadge}</td>
+      <td>${weekBadge}</td>
+    </tr>`;
+  }).join('');
+
+  // 记录最近同步时间
+  const synced = items.find(r => r.synced_at);
+  if (synced) {
+    const d = new Date(synced.synced_at);
+    document.getElementById('lastSync').textContent =
+      `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function shortName(owner) {
+  if (!owner) return '—';
+  const idx = owner.indexOf('-');
+  return idx > 0 ? owner.substring(0, idx) : (owner || '—');
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+  document.getElementById('pageInfo').textContent =
+    `共 ${totalItems} 条 | 第 ${currentPage}/${totalPages} 页`;
+  document.getElementById('prevBtn').disabled = currentPage <= 1;
+  document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+}
+
+function changePage(delta) {
+  currentPage += delta;
+  loadTable();
+}
+
+// ========== 筛选 ==========
+function applyFilters() {
+  filterDept    = document.getElementById('filterDept').value;
+  filterStage   = document.getElementById('filterStage').value;
+  filterChecked = document.getElementById('filterChecked').value;
+  filterFilled  = document.getElementById('filterFilled').value;
+  currentPage   = 1;
+  loadTable();
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchQuery = document.getElementById('searchInput').value.trim();
+    currentPage = 1;
+    loadTable();
+  }, 400);
+}
+
+function resetFilters() {
+  filterDept = ''; filterStage = ''; filterChecked = ''; filterFilled = ''; searchQuery = '';
+  document.getElementById('filterDept').value    = '';
+  document.getElementById('filterStage').value   = '';
+  document.getElementById('filterChecked').value = '';
+  document.getElementById('filterFilled').value  = '';
+  document.getElementById('searchInput').value   = '';
+  currentPage = 1;
+  loadTable();
+}
+
+// ========== 侧滑面板 ==========
+let currentRecord = null;
+let currentPanelTab = 'current';
+let currentRoundInfo = null;
+let followupHistory = [];
+
+// 生成表单HTML（复用模板）
+function buildFollowupForm(prefix) {
+  return `
+    <div class="form-section">
+      <label class="form-label">打点阶段 <span class="required">*</span></label>
+      <select class="form-control ${prefix}Stage" onchange="onStageChange('${prefix}')" required>
+        <option value="">—— 请选择 ——</option>
+        ${[1,2,3,4,5,6].map(i => `<option value="${i}">${stageLabels[String(i)] || '阶段'+i}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-section">
+      <label class="form-label">阶段描述 <span class="required">*</span></label>
+      <textarea class="form-control ${prefix}StageDesc" rows="3" placeholder="描述当前阶段的具体情况..." required></textarea>
+    </div>
+    <div class="form-section ${prefix}Stage4Section" style="display:none;background:#f0fdf4;padding:14px;border-radius:8px;border:1px solid #86efac">
+      <h4 style="margin:0 0 12px;font-size:14px;color:#166534">📊 阶段4 — 复盘与活动推进信息</h4>
+      <div class="form-section">
+        <label class="form-label">是否已阶段性汇报给实际决策人？ <span class="required">*</span></label>
+        <div class="toggle-row">
+          <label class="toggle">
+            <input type="checkbox" class="${prefix}Stage4Reported" onchange="toggleDecisionRole('${prefix}')"/>
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label ${prefix}ReportedLabel">未汇报</span>
+        </div>
+        <input type="text" class="form-control ${prefix}Stage4DecisionRole" placeholder="决策人身份（如：校长/教研主任/董事长）" style="margin-top:8px;display:none"/>
+      </div>
+      <div class="form-section">
+        <label class="form-label">是否已组织家长会/宣贯活动？ <span class="required">*</span></label>
+        <div class="toggle-row">
+          <label class="toggle">
+            <input type="checkbox" class="${prefix}Stage4Meeting" onchange="toggleMeetingFiles('${prefix}')"/>
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label ${prefix}MeetingLabel">未组织</span>
+        </div>
+        <div class="${prefix}MeetingFilesSection" style="display:none;margin-top:8px">
+          <label class="form-label">活动截图附件 <span style="color:#999;font-weight:400;font-size:11px">(选填)</span></label>
+          <input type="file" class="${prefix}MeetingFiles" accept="image/*" multiple style="font-size:13px"/>
+          <div class="${prefix}MeetingPreviewList" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-section ${prefix}Stage6Section" style="display:none;background:#fff7ed;padding:14px;border-radius:8px;border:1px solid #fdba74">
+      <h4 style="margin:0 0 12px;font-size:14px;color:#9a3412">❌ 阶段6 — 无采购意向原因</h4>
+      <label class="form-label">请选择/填写无采购意向原因 <span class="required">*</span></label>
+      <select class="form-control ${prefix}Stage6ReasonSelect" onchange="onStage6ReasonChange('${prefix}')" required>
+        <option value="">—— 请选择 ——</option>
+        <option value="已采购竞品">已采购竞品</option>
+        <option value="预算不足">预算不足</option>
+        <option value="决策层变动">决策层变动</option>
+        <option value="教学需求不匹配">教学需求不匹配</option>
+        <option value="试用效果不达预期">试用效果不达预期</option>
+        <option value="其他（请填写）">其他（请填写）</option>
+      </select>
+      <input type="text" class="form-control ${prefix}Stage6ReasonCustom" placeholder="请填写具体原因..." style="margin-top:8px;display:none"/>
+    </div>
+    <div class="form-section">
+      <label class="form-label">客户现阶段反馈 <span class="required">*</span></label>
+      <textarea class="form-control ${prefix}Feedback" rows="3" placeholder="客户对产品/价格/采购的最新反馈..." required></textarea>
+    </div>
+    <div class="form-section">
+      <label class="form-label">商机状态 <span class="required">*</span></label>
+      <select class="form-control ${prefix}OppStatus" required>
+        <option value="">—— 请选择 ——</option>
+        <option value="初期接触">初期接触</option>
+        <option value="方案中">方案中</option>
+        <option value="报价中">报价中</option>
+        <option value="谈判中">谈判中</option>
+        <option value="已成交">已成交</option>
+        <option value="已丢单">已丢单</option>
+        <option value="暂停跟进">暂停跟进</option>
+      </select>
+    </div>
+    <!-- 阶段6时：隐藏卡点，显示后续处理办法 -->
+    <div class="${prefix}BlockerGroup">
+      <div class="form-section">
+        <label class="form-label">推进下一阶段是否存在卡点 <span class="required">*</span></label>
+        <div class="toggle-row">
+          <label class="toggle">
+            <input type="checkbox" class="${prefix}HasBlocker" onchange="toggleBlocker('${prefix}')"/>
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label ${prefix}BlockerLabel">无卡点</span>
+        </div>
+      </div>
+      <div class="form-section ${prefix}BlockerSection" style="display:none">
+        <label class="form-label">卡点是什么 <span class="required">*</span></label>
+        <textarea class="form-control ${prefix}BlockerDetail" rows="3" placeholder="描述卡点原因及可能的解决思路..."></textarea>
+      </div>
+    </div>
+    <div class="${prefix}FollowupPlanGroup" style="display:none">
+      <div class="form-section">
+        <label class="form-label">后续处理办法 <span class="required">*</span></label>
+        <textarea class="form-control ${prefix}FollowupPlan" rows="3" placeholder="请填写后续跟进计划或处理方案..."></textarea>
+      </div>
+    </div>
+  `;
+}
+
+function switchPanelTab(tab) {
+  currentPanelTab = tab;
+  document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+  document.getElementById('ptab-' + tab).classList.add('active');
+  document.getElementById('panelTabCurrent').style.display = tab === 'current' ? 'block' : 'none';
+  document.getElementById('panelTabHistory').style.display = tab === 'history' ? 'block' : 'none';
+  // 保存按钮仅在"本周填报"时显示
+  document.getElementById('panelSaveBtn').style.display = (tab === 'current') ? 'block' : 'none';
+}
+
+async function openPanel(id, defaultTab = 'current') {
+  console.log('openPanel called:', id, defaultTab);  // 调试信息
+  try {
+  // 从当前表格中找到记录
+  const params = new URLSearchParams({ page: 1, page_size: 9999 });
+  const data = await apiFetch('/api/key-account/hardware?' + params);
+  const r = data.items.find(x => x.id === id);
+  if (!r) {
+    console.error('Record not found:', id);
+    showToast('❌ 未找到记录', 'error');
+    return;
+  }
+  currentRecord = r;
+  console.log('Record found:', r.customer_name);
+
+  document.getElementById('editingId').value = id;
+  document.getElementById('panelTitle').textContent = r.customer_name || '跟进详情';
+
+  const today = new Date();
+  let visitText = '无';
+  if (r.last_visit_date) {
+    const diff = Math.floor((today - new Date(r.last_visit_date)) / 86400000);
+    visitText = `${r.last_visit_date}（${diff}天前）`;
+  }
+
+  document.getElementById('infoGrid').innerHTML = `
+    <div class="info-item"><div class="lbl">所属部门</div><div class="val">${esc(r.department) || '—'}</div></div>
+    <div class="info-item"><div class="lbl">客户顾问</div><div class="val" title="${esc(r.owner_name) || ''}">${esc(shortName(r.owner_name)) || '—'}</div></div>
+    <div class="info-item"><div class="lbl">教室数量</div><div class="val">${r.classroom_count || 0}</div></div>
+    <div class="info-item"><div class="lbl">商机数量</div><div class="val">${r.opportunity_count || 0}</div></div>
+    <div class="info-item"><div class="lbl">累计借用台数</div><div class="val">${r.lent_units || 0}</div></div>
+    <div class="info-item"><div class="lbl">累计采购台数</div><div class="val">${r.purchased_units || 0}</div></div>
+    <div class="info-item"><div class="lbl">累计拜访次数</div><div class="val">${r.visit_count || 0}</div></div>
+    <div class="info-item"><div class="lbl">商机金额</div><div class="val">${r.opportunity_amount ? '¥' + Number(r.opportunity_amount).toLocaleString('zh-CN') : '—'}</div></div>
+    <div class="info-item full"><div class="lbl">最近拜访日期</div><div class="val">${visitText}</div></div>
+  `;
+
+  // 加载当前填报轮次信息
+  if (!currentRoundInfo) {
+    currentRoundInfo = await apiFetch('/api/key-account/followup/current-round');
+  }
+
+  // 渲染轮次提示
+  const banner = document.getElementById('roundBanner');
+  if (currentRoundInfo.is_fillable) {
+    banner.className = 'round-banner fillable';
+    banner.innerHTML = `
+      <span class="rb-icon">📅</span>
+      <div class="rb-text">
+        <div class="rb-title">本周填报轮次：${currentRoundInfo.current_round}</div>
+        <div class="rb-sub">距截止还有 ${currentRoundInfo.days_remaining} 天 | 填报后 ${currentRoundInfo.lock_days} 天自动锁定</div>
+      </div>`;
+  } else {
+    banner.className = 'round-banner expired';
+    banner.innerHTML = `
+      <span class="rb-icon">⏰</span>
+      <div class="rb-text">
+        <div class="rb-title">本周填报已截止</div>
+        <div class="rb-sub">当前轮次：${currentRoundInfo.current_round}，请在下周一开放后填报</div>
+      </div>`;
+  }
+
+  // 构建本周填报表单
+  document.getElementById('currentFormContainer').innerHTML = buildFollowupForm('cur');
+
+  // 加载填报历史
+  await loadFollowupHistory(id);
+
+  // 填充本周填报（如有）
+  const thisWeekLog = followupHistory.find(l => l.fill_round === currentRoundInfo.current_round);
+  fillFormFromData('cur', thisWeekLog || {});
+
+  // 设置文件上传监听（本周填报）
+  setupFileUpload('cur');
+
+    // 默认切到指定Tab
+  switchPanelTab(defaultTab);
+
+  // 如果指定了history tab，自动展开最近一次已锁定的历史记录（上周填报）
+  if (defaultTab === 'history' && followupHistory.length > 0) {
+    // 找到上周的填报记录（最近一条已锁定的，或非本周的）
+    const currentRound = currentRoundInfo ? currentRoundInfo.current_round : '';
+    const lastWeekLog = followupHistory.find(l => l.fill_round !== currentRound) || followupHistory[0];
+    if (lastWeekLog) {
+      // 延迟执行，确保Tab切换完成
+      setTimeout(() => viewHistoryDetail(lastWeekLog.id), 100);
+    }
+  }
+
+  document.getElementById('panelOverlay').classList.add('show');
+  document.getElementById('sidePanel').classList.add('show');
+  } catch (error) {
+    console.error('Error opening panel:', error);
+    showToast('❌ 打开面板失败：' + error.message, 'error');
+  }
+}
+
+// 填充表单数据
+function fillFormFromData(prefix, data) {
+  const stageEl = document.querySelector(`.${prefix}Stage`);
+  if (stageEl) stageEl.value = data.checkin_stage || '';
+  const descEl = document.querySelector(`.${prefix}StageDesc`);
+  if (descEl) descEl.value = data.stage_desc || '';
+  const fbEl = document.querySelector(`.${prefix}Feedback`);
+  if (fbEl) fbEl.value = data.feedback || '';
+  const oppEl = document.querySelector(`.${prefix}OppStatus`);
+  if (oppEl) oppEl.value = data.opportunity_status || '';
+
+  // 阶段4
+  const s4r = document.querySelector(`.${prefix}Stage4Reported`);
+  if (s4r) {
+    s4r.checked = !!data.stage4_reported;
+    const rl = document.querySelector(`.${prefix}ReportedLabel`);
+    if (rl) rl.textContent = data.stage4_reported ? '已汇报' : '未汇报';
+    const dr = document.querySelector(`.${prefix}Stage4DecisionRole`);
+    if (dr) { dr.value = data.stage4_decision_role || ''; dr.style.display = data.stage4_reported ? 'block' : 'none'; }
+  }
+  const s4m = document.querySelector(`.${prefix}Stage4Meeting`);
+  if (s4m) {
+    s4m.checked = !!data.stage4_meeting_held;
+    const ml = document.querySelector(`.${prefix}MeetingLabel`);
+    if (ml) ml.textContent = data.stage4_meeting_held ? '已组织' : '未组织';
+    const mfs = document.querySelector(`.${prefix}MeetingFilesSection`);
+    if (mfs) mfs.style.display = data.stage4_meeting_held ? 'block' : 'none';
+  }
+
+  // 阶段4附件
+  if (prefix === 'cur') {
+    const previewEl = document.querySelector(`.${prefix}MeetingPreviewList`);
+    if (previewEl && data.stage4_meeting_files) {
+      try {
+        const files = JSON.parse(data.stage4_meeting_files);
+        previewEl.innerHTML = files.map((f, i) => `
+          <div style="position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb">
+            <img src="${f}" style="width:100%;height:100%;object-fit:cover" title="附件${i+1}"/>
+            <button onclick="removeFile('${prefix}',${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;line-height:18px;cursor:pointer;padding:0">×</button>
+          </div>
+        `).join('');
+        // 存储到data属性以便读取
+        previewEl.dataset.files = data.stage4_meeting_files;
+      } catch {}
+    }
+  }
+
+  // 阶段6
+  const reason = data.stage6_no_intent_reason || '';
+  const presetReasons = ['已采购竞品','预算不足','决策层变动','教学需求不匹配','试用效果不达预期'];
+  const sel = document.querySelector(`.${prefix}Stage6ReasonSelect`);
+  const cust = document.querySelector(`.${prefix}Stage6ReasonCustom`);
+  if (sel) {
+    if (presetReasons.includes(reason)) {
+      sel.value = reason;
+      if (cust) cust.style.display = 'none';
+    } else if (reason) {
+      sel.value = '其他（请填写）';
+      if (cust) { cust.value = reason; cust.style.display = 'block'; }
+    } else {
+      sel.value = '';
+      if (cust) { cust.style.display = 'none'; cust.value = ''; }
+    }
+  }
+
+  // 卡点
+  const hb = document.querySelector(`.${prefix}HasBlocker`);
+  if (hb) {
+    hb.checked = !!data.has_blocker;
+    const bl = document.querySelector(`.${prefix}BlockerLabel`);
+    if (bl) bl.textContent = data.has_blocker ? '有卡点' : '无卡点';
+    const bs = document.querySelector(`.${prefix}BlockerSection`);
+    if (bs) bs.style.display = data.has_blocker ? 'block' : 'none';
+  }
+  const bd = document.querySelector(`.${prefix}BlockerDetail`);
+  if (bd) bd.value = data.blocker_detail || '';
+
+  // 后续处理办法（阶段6）
+  const fp = document.querySelector(`.${prefix}FollowupPlan`);
+  if (fp) fp.value = data.followup_plan || '';
+
+  // 切换阶段4/6区域
+  toggleStageSections(prefix);
+}
+
+// 阶段4/6条件字段切换
+function onStageChange(prefix) { toggleStageSections(prefix); }
+
+function toggleStageSections(prefix) {
+  const stageEl = document.querySelector(`.${prefix}Stage`);
+  if (!stageEl) return;
+  const v = stageEl.value;
+  const s4 = document.querySelector(`.${prefix}Stage4Section`);
+  const s6 = document.querySelector(`.${prefix}Stage6Section`);
+  const blockerGroup = document.querySelector(`.${prefix}BlockerGroup`);
+  const followupPlanGroup = document.querySelector(`.${prefix}FollowupPlanGroup`);
+  if (s4) s4.style.display = v === '4' ? 'block' : 'none';
+  if (s6) s6.style.display = v === '6' ? 'block' : 'none';
+  // 阶段6时：隐藏卡点、显示后续处理办法；其他阶段相反
+  if (blockerGroup) blockerGroup.style.display = v === '6' ? 'none' : 'block';
+  if (followupPlanGroup) followupPlanGroup.style.display = v === '6' ? 'block' : 'none';
+}
+
+function toggleDecisionRole(prefix) {
+  const cb = document.querySelector(`.${prefix}Stage4Reported`);
+  const label = document.querySelector(`.${prefix}ReportedLabel`);
+  const input = document.querySelector(`.${prefix}Stage4DecisionRole`);
+  if (cb) label.textContent = cb.checked ? '已汇报' : '未汇报';
+  if (input) input.style.display = cb.checked ? 'block' : 'none';
+}
+
+function toggleMeetingFiles(prefix) {
+  const cb = document.querySelector(`.${prefix}Stage4Meeting`);
+  const label = document.querySelector(`.${prefix}MeetingLabel`);
+  const section = document.querySelector(`.${prefix}MeetingFilesSection`);
+  if (cb) label.textContent = cb.checked ? '已组织' : '未组织';
+  if (section) section.style.display = cb.checked ? 'block' : 'none';
+}
+
+function toggleBlocker(prefix) {
+  const cb = document.querySelector(`.${prefix}HasBlocker`);
+  const label = document.querySelector(`.${prefix}BlockerLabel`);
+  const section = document.querySelector(`.${prefix}BlockerSection`);
+  if (cb) label.textContent = cb.checked ? '有卡点' : '无卡点';
+  if (section) section.style.display = cb.checked ? 'block' : 'none';
+}
+
+function onStage6ReasonChange(prefix) {
+  const sel = document.querySelector(`.${prefix}Stage6ReasonSelect`);
+  const cust = document.querySelector(`.${prefix}Stage6ReasonCustom`);
+  if (sel && cust) cust.style.display = sel.value === '其他（请填写）' ? 'block' : 'none';
+}
+
+function getStage6Reason(prefix) {
+  const sel = document.querySelector(`.${prefix}Stage6ReasonSelect`);
+  if (!sel) return '';
+  if (sel.value === '其他（请填写）') {
+    return document.querySelector(`.${prefix}Stage6ReasonCustom`).value;
+  }
+  return sel.value;
+}
+
+// 文件上传
+function setupFileUpload(prefix) {
+  const fi = document.querySelector(`.${prefix}MeetingFiles`);
+  const previewEl = document.querySelector(`.${prefix}MeetingPreviewList`);
+  if (!fi || !previewEl) return;
+  fi.onchange = function() {
+    let files = [];
+    try { files = JSON.parse(previewEl.dataset.files || '[]'); } catch {}
+    Array.from(this.files).forEach(function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        files.push(e.target.result);
+        previewEl.dataset.files = JSON.stringify(files);
+        renderFilePreviews(prefix, files);
+      };
+      reader.readAsDataURL(file);
+    });
+    this.value = '';
+  };
+}
+
+function renderFilePreviews(prefix, files) {
+  const el = document.querySelector(`.${prefix}MeetingPreviewList`);
+  if (!el) return;
+  el.innerHTML = files.map((f, i) => `
+    <div style="position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb">
+      <img src="${f}" style="width:100%;height:100%;object-fit:cover" title="附件${i+1}"/>
+      <button onclick="removeFile('${prefix}',${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;line-height:18px;cursor:pointer;padding:0">×</button>
+    </div>
+  `).join('');
+  el.dataset.files = JSON.stringify(files);
+}
+
+function removeFile(prefix, i) {
+  const el = document.querySelector(`.${prefix}MeetingPreviewList`);
+  if (!el) return;
+  let files = [];
+  try { files = JSON.parse(el.dataset.files || '[]'); } catch {}
+  files.splice(i, 1);
+  renderFilePreviews(prefix, files);
+}
+
+function getMeetingFiles(prefix) {
+  const el = document.querySelector(`.${prefix}MeetingPreviewList`);
+  if (!el) return '[]';
+  return el.dataset.files || '[]';
+}
+
+// 加载填报历史
+async function loadFollowupHistory(hardwareId) {
+  try {
+    const data = await apiFetch(`/api/key-account/hardware/${hardwareId}/followup-logs`);
+    followupHistory = data.items || [];
+  } catch {
+    followupHistory = [];
+  }
+  renderHistory();
+}
+
+function renderHistory() {
+  const container = document.getElementById('historyContainer');
+  if (!followupHistory.length) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>暂无填报历史记录</p></div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <ul class="followup-timeline">
+      ${followupHistory.map(log => {
+        const stageName = stageLabels[log.checkin_stage] || STAGE_LABELS[log.checkin_stage] || log.checkin_stage || '—';
+        const stageBadge = log.checkin_stage ? `<span class="badge ${STAGE_BADGE[log.checkin_stage]||''}">${stageName}</span>` : '<span style="color:#ccc">未选择</span>';
+        const lockBadge = log.is_locked ? '<span class="ftl-lock">🔒 已锁定</span>' : '<span class="ftl-filled">✏️ 可编辑</span>';
+        const fillDate = log.fill_date || (log.filled_at || '').slice(0,10);
+        return `<li onclick="viewHistoryDetail(${log.id})" class="${log.is_locked ? 'locked' : ''}">
+          <span class="ftl-round">轮次 ${log.fill_round}</span> ${lockBadge}
+          ${!log.is_locked || isAdmin ? `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();deleteFollowupLog(${log.id})" style="float:right;font-size:11px;padding:3px 8px;color:#dc2626;border-color:#fecaca">🗑 删除</button>` : ''}
+          <div class="ftl-stage">${stageBadge} | 填报于 ${fillDate} | ${esc(log.filled_by||'')}</div>
+          ${log.stage_desc ? `<div style="font-size:12px;color:#999;margin-top:4px">${esc(log.stage_desc)}</div>` : ''}
+        </li>`;
+      }).join('')}
+    </ul>
+  `;
+}
+
+function viewHistoryDetail(logId) {
+  const log = followupHistory.find(l => l.id === logId);
+  if (!log) return;
+  // 填充表单数据到"本周填报"区域，但标注为历史记录
+  const banner = document.getElementById('roundBanner');
+  if (log.is_locked && !isAdmin) {
+    banner.className = 'round-banner expired';
+    banner.innerHTML = `
+      <span class="rb-icon">🔒</span>
+      <div class="rb-text">
+        <div class="rb-title">查看历史：轮次 ${log.fill_round}</div>
+        <div class="rb-sub">该记录已锁定${isAdmin ? '（管理员可编辑）' : ''}</div>
+      </div>`;
+  } else {
+    banner.className = 'round-banner fillable';
+    banner.innerHTML = `
+      <span class="rb-icon">📋</span>
+      <div class="rb-text">
+        <div class="rb-title">查看/编辑：轮次 ${log.fill_round}</div>
+        <div class="rb-sub">${log.is_locked ? '已锁定（管理员可编辑）' : '可编辑'}</div>
+      </div>`;
+  }
+  fillFormFromData('cur', log);
+  // 切换到本周填报Tab显示详情
+  switchPanelTab('current');
+}
+
+async function deleteFollowupLog(logId) {
+  if (!confirm('确定要删除这条填报记录吗？此操作不可恢复。')) return;
+  const id = parseInt(document.getElementById('editingId').value);
+  try {
+    await apiFetch(`/api/key-account/hardware/${id}/followup-logs/${logId}`, { method: 'DELETE' });
+    showToast('✅ 填报记录已删除');
+    await loadFollowupHistory(id);
+    await loadTable();
+  } catch (e) {
+    showToast('❌ 删除失败：' + (e.error || '未知错误'));
+  }
+}
+
+// 保存（根据当前Tab决定保存到哪）
+async function saveCurrentTab() {
+  await saveCurrentFollowup();
+}
+
+async function saveCurrentFollowup() {
+  const id = parseInt(document.getElementById('editingId').value);
+
+  // 前端必填校验
+  const stage = document.querySelector('.curStage')?.value;
+  const stageDesc = document.querySelector('.curStageDesc')?.value?.trim();
+  const feedback = document.querySelector('.curFeedback')?.value?.trim();
+  const oppStatus = document.querySelector('.curOppStatus')?.value;
+  const hasBlocker = document.querySelector('.curHasBlocker')?.checked;
+
+  if (!stage) { showToast('⚠️ 请选择打点阶段'); return; }
+  if (!stageDesc) { showToast('⚠️ 请填写阶段描述'); return; }
+  if (!feedback) { showToast('⚠️ 请填写客户现阶段反馈'); return; }
+  if (!oppStatus) { showToast('⚠️ 请选择商机状态'); return; }
+
+  // 阶段4必填校验
+  if (stage === '4') {
+    const s4r = document.querySelector('.curStage4Reported')?.checked;
+    if (s4r) {
+      const s4dr = document.querySelector('.curStage4DecisionRole')?.value?.trim();
+      if (!s4dr) { showToast('⚠️ 请填写决策人身份'); return; }
+    }
+    const s4m = document.querySelector('.curStage4Meeting')?.checked;
+    if (!s4m) { showToast('⚠️ 请确认是否已组织家长会/宣贯活动'); return; }
+  }
+
+  // 阶段6必填校验
+  if (stage === '6') {
+    const reason = getStage6Reason('cur');
+    if (!reason) { showToast('⚠️ 请选择/填写无采购意向原因'); return; }
+    const fp = document.querySelector('.curFollowupPlan')?.value?.trim();
+    if (!fp) { showToast('⚠️ 请填写后续处理办法'); return; }
+  }
+
+  // 卡点必填（仅非阶段6时）
+  if (stage !== '6' && hasBlocker) {
+    const bd = document.querySelector('.curBlockerDetail')?.value?.trim();
+    if (!bd) { showToast('⚠️ 请填写卡点详情'); return; }
+  }
+
+  const payload = {
+    checkin_stage:  document.querySelector('.curStage')?.value || '',
+    stage_desc:     document.querySelector('.curStageDesc')?.value || '',
+    feedback:       document.querySelector('.curFeedback')?.value || '',
+    has_blocker:    stage !== '6' ? (document.querySelector('.curHasBlocker')?.checked ? 1 : 0) : 0,
+    blocker_detail: stage !== '6' ? (document.querySelector('.curBlockerDetail')?.value || '') : '',
+    followup_plan:  stage === '6' ? (document.querySelector('.curFollowupPlan')?.value || '') : '',
+    opportunity_status: document.querySelector('.curOppStatus')?.value || '',
+    stage4_reported:       document.querySelector('.curStage4Reported')?.checked ? 1 : 0,
+    stage4_decision_role:  document.querySelector('.curStage4DecisionRole')?.value || '',
+    stage4_meeting_held:   document.querySelector('.curStage4Meeting')?.checked ? 1 : 0,
+    stage4_meeting_files:  getMeetingFiles('cur'),
+    stage6_no_intent_reason: getStage6Reason('cur'),
+  };
+  try {
+    await apiFetch(`/api/key-account/hardware/${id}/followup-logs`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    closePanel();
+    showToast('✅ 本周填报已保存');
+    await loadTable();
+  } catch (e) {
+    showToast('❌ 保存失败：' + (e.error || '未知错误'));
+  }
+}
+
+function closePanel() {
+  document.getElementById('panelOverlay').classList.remove('show');
+  document.getElementById('sidePanel').classList.remove('show');
+  currentRoundInfo = null; // 重置以便下次重新加载
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('saveToast');
+  t.textContent = msg;
+  t.className = 'save-toast';
+  if (type === 'error') t.classList.add('error');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ========== 同步弹窗 ==========
+function openSyncModal() {
+  document.getElementById('syncLog').textContent = '等待开始...';
+  document.getElementById('syncStartBtn').disabled = false;
+  document.getElementById('syncCancelBtn').textContent = '取消';
+  document.getElementById('syncModal').classList.add('show');
+}
+function closeSyncModal() {
+  document.getElementById('syncModal').classList.remove('show');
+}
+
+async function startSync() {
+  const logEl   = document.getElementById('syncLog');
+  const startBtn = document.getElementById('syncStartBtn');
+  const cancelBtn = document.getElementById('syncCancelBtn');
+  startBtn.disabled = true;
+  cancelBtn.textContent = '关闭';
+
+  function log(msg) { logEl.textContent += '\n' + msg; }
+  logEl.textContent = '▶ 开始同步（通过 CRM MCP 接口）...';
+
+  try {
+    // Step 1：客户清单
+    log('① 拉取客户清单（本财年新增，教室数≥30）...');
+    let allCustomers = [];
+    for (let p = 1; p <= 5; p++) {
+      const res = await apiFetch('/api/key-account/sync-crm-accounts', {
+        method: 'POST',
+        body: JSON.stringify({ page: p, page_size: 50 })
+      });
+      if (!res.records || !res.records.length) break;
+      allCustomers = allCustomers.concat(res.records);
+      log(`  页 ${p}：${res.records.length} 条（共 ${res.total || '?'} 条）`);
+    }
+    log(`  → 客户总计 ${allCustomers.length} 条`);
+
+    // Step 2：聚合（借用/采购/拜访/商机暂时手动补充）
+    log('② 聚合数据（借用/采购/拜访/商机待后续完善）...');
+    const items = allCustomers.map(r => ({
+      crm_account_id: String(r.id),
+      customer_name: r.accountName || r.name || '',
+      department: (r.dimDepart || {}).name || '',
+      owner_name: (r.ownerId || {}).name || '',
+      created_date: (r.newCreateDate__c || '').replace(/\//g, '-'),
+      classroom_count: r.ClassroomN__c || 0,
+      lent_units: 0,
+      lent_date: '',
+      purchased_units: 0,
+      purchase_date: '',
+      visit_count: 0,
+      last_visit_date: '',
+      opportunity_count: 0,
+    }));
+    log(`  → 转换 ${items.length} 条`);
+
+    // Step 3：写入本地
+    log('③ 写入本地数据库...');
+    const syncRes = await apiFetch('/api/key-account/hardware/sync', {
+      method: 'POST',
+      body: JSON.stringify({ items })
+    });
+    log(`  → ${syncRes.message}`);
+    log('✅ 同步完成！请刷新页面查看最新数据。');
+
+    await loadTable();
+  } catch (e) {
+    log('❌ 同步失败：此功能需要 WorkBuddy 对话触发');
+    log('   请在 WorkBuddy 聊天窗口中说「同步CRM数据」');
+  }
+}
+
+// 调用后端代理 CRM BI 视图数据（使用 MCP 已经暴露的数据接口）
+async function crmViewQuery(viewId) {
+  // 此处调用后端专门的 CRM 代理路由（由 MCP connector 提供），
+  // 若不可用则返回空数组
+  try {
+    const res = await fetch('/api/crm-proxy/view-query', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ view_id: viewId, page: 1, page_size: 500 })
+    });
+    if (!res.ok) return [];
+    const d = await res.json();
+    return d.rows || [];
+  } catch { return []; }
+}
+
+// 数据聚合：以客户ID为Key，合并各明细
+function mergeData(customers, lents, solds, visits, opps) {
+  // 建立聚合 Map
+  const lentMap  = {}; // accountId -> totalLent
+  const soldMap  = {}; // accountId -> totalSold
+  const visitMap = {}; // accountId -> { count, lastDate }
+  const oppMap   = {}; // accountId -> count
+
+  lents.forEach(r => {
+    const aid = r.account_id || r['客户ID'] || r[0];
+    const qty = parseInt(r['一体机借用数量'] || r.lent_qty || r[1]) || 0;
+    lentMap[aid] = (lentMap[aid] || 0) + qty;
+  });
+  solds.forEach(r => {
+    const aid = r.account_id || r['客户ID'] || r[0];
+    const qty = parseInt(r['采购数量'] || r.sold_qty || r[1]) || 0;
+    soldMap[aid] = (soldMap[aid] || 0) + qty;
+  });
+  visits.forEach(r => {
+    const aid  = r.account_id || r['客户ID'] || r[0];
+    const date = r['拜访日期'] || r.visit_date || r[1] || '';
+    if (!visitMap[aid]) visitMap[aid] = { count: 0, lastDate: '' };
+    visitMap[aid].count++;
+    if (date > visitMap[aid].lastDate) visitMap[aid].lastDate = date;
+  });
+  opps.forEach(r => {
+    const aid = r.account_id || r['客户ID'] || r[0];
+    oppMap[aid] = (oppMap[aid] || 0) + 1;
+  });
+
+  return customers.map(r => {
+    // 字段映射兼容不同BI视图返回格式
+    const aid  = r.id || r['客户ID'] || r[0] || '';
+    const name = r.name || r['客户名称'] || r[1] || '';
+    const dept = r.department || r['所属部门'] || r[2] || '';
+    const owner = r.owner_name || r['客户所有人'] || r[3] || '';
+    const classN = parseInt(r.classroom_count || r['教室数量'] || r[4]) || 0;
+    const vm = visitMap[aid] || {};
+    return {
+      crm_account_id: String(aid),
+      customer_name:  name,
+      department:     dept,
+      owner_name:     owner,
+      classroom_count: classN,
+      lent_units:      lentMap[aid]  || 0,
+      purchased_units: soldMap[aid]  || 0,
+      visit_count:     vm.count      || 0,
+      last_visit_date: vm.lastDate   || '',
+      opportunity_count: oppMap[aid] || 0,
+    };
+  });
+}
+
+// ========== 导出 CSV ==========
+async function exportCSV() {
+  const params = new URLSearchParams({ page: 1, page_size: 9999, stage: filterStage, checked: filterChecked, filled: filterFilled, q: searchQuery, dept: filterDept });
+  const data = await apiFetch('/api/key-account/hardware?' + params);
+  const items = data.items;
+  if (!items.length) { alert('没有数据可以导出'); return; }
+
+  const headers = ['客户名称','所属部门','客户顾问','教室数量','借用台数','采购台数','拜访次数','最近拜访日期','商机数量','商机金额','商机状态','是否打点','打点阶段','阶段描述','客户反馈','是否有卡点','卡点描述','更新人','更新时间'];
+  const rows = items.map(r => [
+    r.customer_name, r.department, r.owner_name,
+    r.classroom_count, r.lent_units, r.purchased_units,
+    r.visit_count, r.last_visit_date, r.opportunity_count,
+    r.opportunity_amount || 0, r.opportunity_status || '',
+    r.is_checked_in ? '已打点' : '未打点',
+    r.checkin_stage ? (stageLabels[r.checkin_stage] || STAGE_LABELS[r.checkin_stage] || '') : '',
+    r.stage_desc, r.feedback,
+    r.has_blocker ? '有卡点' : '无卡点',
+    r.blocker_detail, r.updated_by, r.updated_at
+  ].map(v => `"${(v||'').toString().replace(/"/g,'""')}"`));
+
+  const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `硬件打点跟进_${new Date().toLocaleDateString('zh-CN')}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+document.getElementById('logoutBtn').addEventListener('click', e => {
+  e.preventDefault();
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  location.href = '/';
+});
+
+// ========== 管理员阶段管理 ==========
+(function() {
+  setTimeout(() => {
+    document.getElementById('adminStageBtn').style.display = isAdmin ? 'block' : 'none';
+  }, 500);
+})();
+
+async function openStageModal() {
+  const data = await apiFetch('/api/key-account/stages');
+  const list = document.getElementById('stageEditList');
+  list.innerHTML = data.stages.map(s => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:#f9fafb;padding:8px 12px;border-radius:8px">
+      <span style="font-weight:700;color:#0F6E56;min-width:20px">${s.stage_key}</span>
+      <input class="form-control" style="flex:1" value="${esc(s.stage_name)}" data-key="${s.stage_key}" data-field="stage_name"/>
+      <input class="form-control" style="flex:2" value="${esc(s.stage_desc)}" data-key="${s.stage_key}" data-field="stage_desc" placeholder="阶段描述"/>
+    </div>
+  `).join('');
+  document.getElementById('stageModal').classList.add('show');
+}
+
+function closeStageModal() {
+  document.getElementById('stageModal').classList.remove('show');
+}
+
+async function saveStages() {
+  const inputs = document.querySelectorAll('#stageEditList input[data-key]');
+  const stages = [];
+  const seen = new Set();
+  inputs.forEach(inp => {
+    const key = inp.dataset.key;
+    if (seen.has(key)) return;
+    seen.add(key);
+    stages.push({
+      stage_key: key,
+      stage_name: document.querySelector(`input[data-key="${key}"][data-field="stage_name"]`).value,
+      stage_desc: document.querySelector(`input[data-key="${key}"][data-field="stage_desc"]`).value,
+    });
+  });
+  try {
+    await apiFetch('/api/key-account/stages', {
+      method: 'PUT',
+      body: JSON.stringify({ stages })
+    });
+    closeStageModal();
+    showToast('✅ 阶段配置已保存');
+    await loadStages();
+    await loadTable();
+  } catch (e) {
+    showToast('❌ 保存失败：' + (e.error || '请确认管理员权限'));
+  }
+}
+</script>
+</body>
+</html>

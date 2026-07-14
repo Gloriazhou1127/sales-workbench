@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>重点客户跟进 — 销售工作台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:#F4F6FA;min-height:100vh;color:#222}
+/* 顶栏 */
+.topbar{display:flex;align-items:center;background:#fff;padding:0 28px;height:56px;box-shadow:0 1px 4px rgba(0,0,0,.08);position:sticky;top:0;z-index:100}
+.topbar-logo{font-weight:700;font-size:17px;color:#185FA5;letter-spacing:.5px}
+.topbar-nav{display:flex;gap:6px;margin-left:32px}
+.topbar-nav a{padding:6px 14px;border-radius:6px;font-size:14px;color:#555;text-decoration:none;transition:.15s}
+.topbar-nav a:hover{background:#f0f4fa;color:#185FA5}
+.topbar-nav a.active{background:#E6F1FB;color:#185FA5;font-weight:600}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px;color:#888}
+.topbar-right .user-name{color:#333;font-weight:500}
+.topbar-right a{color:#185FA5;text-decoration:none}
+/* 主体 */
+.page{max-width:960px;margin:36px auto;padding:0 20px}
+.page-title{font-size:24px;font-weight:700;color:#1a2540;margin-bottom:8px}
+.page-sub{font-size:14px;color:#888;margin-bottom:32px}
+/* 模块卡片 */
+.modules{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
+.module-card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.07);padding:28px 24px 22px;display:flex;flex-direction:column;gap:12px;transition:.2s;cursor:pointer;text-decoration:none;color:inherit;position:relative;overflow:hidden}
+.module-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.12)}
+.module-card.disabled{opacity:.55;cursor:not-allowed}
+.module-card.disabled:hover{transform:none;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.mc-badge{position:absolute;top:14px;right:14px;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+.badge-active{background:#dcfce7;color:#166534}
+.badge-soon{background:#fef3c7;color:#92400e}
+.mc-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.mc-icon svg{width:24px;height:24px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mc-name{font-size:17px;font-weight:700}
+.mc-desc{font-size:13px;color:#888;line-height:1.6}
+.mc-arrow{align-self:flex-end;font-size:20px;color:#ccc;margin-top:auto}
+.module-card:hover .mc-arrow{color:#185FA5}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="topbar-logo">📊 销售工作台</span>
+  <nav class="topbar-nav">
+    <a href="/workbench">工作台首页</a>
+    <a href="/key-account" class="active">重点客户跟进</a>
+  </nav>
+  <div class="topbar-right">
+    <span>👤 <span class="user-name" id="userName">加载中...</span></span>
+    <a href="/" id="logoutBtn">退出</a>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">重点客户跟进</div>
+  <div class="page-sub">聚焦重点客户，跟踪硬件打点、软件续费及新产品增购全流程</div>
+
+  <div class="modules">
+    <!-- 硬件打点跟进 -->
+    <a href="/key-account/hardware" class="module-card">
+      <span class="mc-badge badge-active">进行中</span>
+      <div class="mc-icon" style="background:#E1F5EE">
+        <svg stroke="#0F6E56" viewBox="0 0 24 24">
+          <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+      </div>
+      <div class="mc-name" style="color:#0F6E56">硬件打点跟进</div>
+      <div class="mc-desc">本财年新增教室数大于30的客户，追踪硬件采购推进阶段与打点状态</div>
+      <span class="mc-arrow">→</span>
+    </a>
+
+    <!-- 软件续费跟进 -->
+    <div class="module-card disabled">
+      <span class="mc-badge badge-soon">即将上线</span>
+      <div class="mc-icon" style="background:#EEF2FF">
+        <svg stroke="#4F46E5" viewBox="0 0 24 24">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="mc-name" style="color:#4F46E5">软件续费跟进</div>
+      <div class="mc-desc">软件产品到期提醒、续费商机追踪与回款跟进</div>
+      <span class="mc-arrow">→</span>
+    </div>
+
+    <!-- 新产品增购跟进 -->
+    <div class="module-card disabled">
+      <span class="mc-badge badge-soon">即将上线</span>
+      <div class="mc-icon" style="background:#FFF7ED">
+        <svg stroke="#EA580C" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+      </div>
+      <div class="mc-name" style="color:#EA580C">新产品增购跟进</div>
+      <div class="mc-desc">新产品推介进度、试用转化与增购商机管理</div>
+      <span class="mc-arrow">→</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) { location.href = '/'; }
+
+fetch('/api/user/me', { headers: { 'Authorization': 'Bearer ' + token } })
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(u => { document.getElementById('userName').textContent = u.display_name || u.username; })
+  .catch(() => { location.href = '/'; });
+
+// 记录页面访问
+fetch('/api/key-account/visit', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => {});
+
+document.getElementById('logoutBtn').addEventListener('click', e => {
+  e.preventDefault();
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  location.href = '/';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 - 模块配置</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8; min-height: 100vh;
+  }
+  .top-bar {
+    background: #fff; border-bottom: 1px solid #e8e8e8;
+    padding: 0 28px; height: 52px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .top-bar .logo { font-size: 16px; font-weight: 500; color: #1a1a1a; }
+  .top-bar .right { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+  .top-bar .btn-sm {
+    font-size: 12px; padding: 4px 14px; border-radius: 6px; border: 1px solid #ddd;
+    background: #fff; cursor: pointer; color: #555;
+  }
+  .top-bar .btn-sm:hover { border-color: #378ADD; color: #378ADD; }
+  .main-content { padding: 24px 28px; max-width: 800px; margin: 0 auto; }
+  .page-title {
+    font-size: 18px; font-weight: 500; color: #1a1a1a; margin-bottom: 4px;
+  }
+  .page-subtitle { font-size: 13px; color: #999; margin-bottom: 24px; }
+
+  .module-list { display: flex; flex-direction: column; gap: 10px; }
+  .module-item {
+    background: #fff; border-radius: 10px; border: 1px solid #eee;
+    padding: 18px 20px; transition: border-color 0.15s;
+  }
+  .module-item:hover { border-color: #d0d0d0; }
+  .module-item .item-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .module-item .item-name {
+    font-size: 15px; font-weight: 500; color: #1a1a1a;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .module-item .item-id { font-size: 11px; color: #bbb; }
+  .module-item .tag {
+    font-size: 11px; padding: 2px 10px; border-radius: 10px; font-weight: 500;
+  }
+  .tag-online { background: #EAF3DE; color: #3B6D11; }
+  .tag-local { background: #FAEEDA; color: #854F0B; }
+  .tag-todo { background: #F1EFE8; color: #5F5E5A; }
+  .tag-admin { background: #FBEAF0; color: #993556; }
+
+  .module-item .form-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .module-item .form-row.full { grid-template-columns: 1fr; }
+  .module-item label {
+    display: block; font-size: 12px; color: #888; margin-bottom: 4px;
+  }
+  .module-item input, .module-item select {
+    width: 100%; padding: 7px 10px; border: 1px solid #e0e0e0;
+    border-radius: 6px; font-size: 13px; outline: none;
+  }
+  .module-item input:focus, .module-item select:focus {
+    border-color: #378ADD;
+  }
+  .module-item .item-actions {
+    display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;
+    padding-top: 10px; border-top: 1px solid #f5f5f5;
+  }
+  .btn-primary {
+    font-size: 12px; padding: 5px 16px; border-radius: 6px;
+    background: #378ADD; color: #fff; border: none; cursor: pointer;
+  }
+  .btn-primary:hover { background: #185FA5; }
+  .btn-primary:disabled { background: #a0c4e8; cursor: not-allowed; }
+  .btn-reset {
+    font-size: 12px; padding: 5px 16px; border-radius: 6px;
+    background: #fff; color: #888; border: 1px solid #ddd; cursor: pointer;
+  }
+  .btn-reset:hover { border-color: #999; color: #555; }
+
+  .save-tip {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    padding: 10px 28px; border-radius: 8px; font-size: 14px;
+    z-index: 999; transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .save-tip.success { background: #EAF3DE; color: #3B6D11; border: 1px solid #C0DD97; }
+  .save-tip.error { background: #FCEBEB; color: #A32D2D; border: 1px solid #F7C1C1; }
+
+  .loading { text-align: center; padding: 60px 0; color: #999; }
+
+  .tab-bar { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+  .tab-btn {
+    padding: 8px 20px; font-size: 14px; cursor: pointer; border: none;
+    background: none; color: #888; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: all .15s;
+  }
+  .tab-btn:hover { color: #555; }
+  .tab-btn.active { color: #378ADD; border-bottom-color: #378ADD; font-weight: 500; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .visit-table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #eee; }
+  .visit-table th { background: #f9fafb; padding: 10px 14px; text-align: left; font-weight: 500; color: #666; border-bottom: 1px solid #eee; }
+  .visit-table td { padding: 10px 14px; border-bottom: 1px solid #f5f5f5; color: #333; }
+  .visit-table tr:last-child td { border-bottom: none; }
+  .visit-table .status-ok { color: #166534; }
+  .visit-table .status-warn { color: #E67E22; }
+  .visit-table .status-never { color: #ccc; }
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <span class="logo">管理后台</span>
+  <div class="right">
+    <span style="color:#888;font-size:13px" id="userDisplay"></span>
+    <button class="btn-sm" onclick="location.href='/workbench'">返回工作台</button>
+    <button class="btn-sm" onclick="logout()">退出</button>
+  </div>
+</div>
+<div class="main-content">
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('modules')">模块配置</button>
+    <button class="tab-btn" onclick="switchTab('visits')">重点客户跟进 — 访问记录</button>
+  </div>
+  <div class="tab-panel active" id="tabModules">
+    <p class="page-subtitle">修改后点击保存即刻生效，工作台页面刷新后即看到最新内容</p>
+    <div class="module-list" id="moduleList">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+  <div class="tab-panel" id="tabVisits">
+    <p class="page-subtitle">展示所有非管理员用户对重点客户跟进模块的最近访问时间</p>
+    <div id="visitContent">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+</div>
+<div class="save-tip" id="saveTip" style="opacity:0"></div>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) { window.location.href = '/'; }
+
+let originalModules = [];
+
+async function init() {
+  try {
+    const userRes = await fetch('/api/user/me', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!userRes.ok) throw new Error('auth');
+    const user = await userRes.json();
+    if (user.role !== 'admin') {
+      alert('仅管理员可访问管理后台');
+      window.location.href = '/workbench';
+      return;
+    }
+    document.getElementById('userDisplay').textContent = user.display_name;
+
+    const modRes = await fetch('/api/modules', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!modRes.ok) throw new Error('modules');
+    const data = await modRes.json();
+
+    // 需要完整的模块列表（含admin专属），所以直接请求全部
+    const allRes = await fetch('/api/modules', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!allRes.ok) throw new Error('all modules');
+    const allData = await allRes.json();
+
+    // 实际上list_modules API 对 admin 不返回 admin 模块？不，代码里 admin 角色 skip 的是 visible_to=admin 的。
+    // 等等，在 app.py 里，逻辑是如果模块 visible_to='admin' 且 当前用户 role != 'admin' 才跳过。
+    // 所以 admin 用户可以看到所有模块。没问题。
+
+    originalModules = allData.modules;
+    renderList(originalModules);
+  } catch (err) {
+    if (err.message === 'auth') {
+      logout();
+    } else {
+      document.getElementById('moduleList').innerHTML = '<div class=loading>加载失败，请刷新重试</div>';
+    }
+  }
+}
+
+function renderList(modules) {
+  const list = document.getElementById('moduleList');
+  list.innerHTML = modules.map(m => {
+    const tagClass = 'tag tag-' + m.link_type;
+    const tagText = { online: '线上', local: '本地', todo: '待接入', admin: '管理员' }[m.link_type] || m.link_type;
+    return '<div class=module-item data-id=' + m.id + '>' +
+      '<div class=item-header>' +
+        '<span class=item-name>' +
+          '<span class="' + tagClass + '">' + tagText + '</span>' +
+          escapeHtml(m.name) +
+        '</span>' +
+        '<span class=item-id>ID: ' + m.id + '</span>' +
+      '</div>' +
+      '<div class=form-row>' +
+        '<div><label>模块名称</label><input type=text data-field=name value="' + escapeAttr(m.name) + '"></div>' +
+        '<div><label>描述</label><input type=text data-field=description value="' + escapeAttr(m.description || '') + '"></div>' +
+      '</div>' +
+      '<div class=form-row>' +
+        '<div><label>链接地址</label><input type=text data-field=link_url value="' + escapeAttr(m.link_url || '') + '" placeholder="留空表示暂未接入"></div>' +
+        '<div><label>链接类型</label><select data-field=link_type>' +
+          '<option value=online ' + (m.link_type === 'online' ? 'selected' : '') + '>线上</option>' +
+          '<option value=local ' + (m.link_type === 'local' ? 'selected' : '') + '>本地</option>' +
+          '<option value=todo ' + (m.link_type === 'todo' ? 'selected' : '') + '>待接入</option>' +
+          '<option value=admin ' + (m.link_type === 'admin' ? 'selected' : '') + '>管理员</option>' +
+        '</select></div>' +
+      '</div>' +
+      '<div class=form-row>' +
+        '<div><label>可见范围</label><select data-field=visible_to>' +
+          '<option value=all ' + (m.visible_to === 'all' ? 'selected' : '') + '>所有人</option>' +
+          '<option value=admin ' + (m.visible_to === 'admin' ? 'selected' : '') + '>仅管理员</option>' +
+        '</select></div>' +
+        '<div><label>排序</label><input type=number data-field=sort_order value=' + m.sort_order + ' min=0 max=99></div>' +
+      '</div>' +
+      '<div class=item-actions>' +
+        '<button class=btn-reset onclick=resetItem(' + m.id + ')>恢复原始</button>' +
+        '<button class=btn-primary onclick=saveItem(' + m.id + ')>保存修改</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function saveItem(id) {
+  const el = document.querySelector('.module-item[data-id="' + id + '"]');
+  const inputs = el.querySelectorAll('[data-field]');
+  const data = {};
+  inputs.forEach(inp => {
+    data[inp.dataset.field] = inp.value;
+  });
+  data.sort_order = parseInt(data.sort_order) || 0;
+
+  try {
+    const res = await fetch('/api/modules/' + id, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    if (res.ok) {
+      showTip('保存成功', 'success');
+    } else {
+      const err = await res.json();
+      showTip(err.error || '保存失败', 'error');
+    }
+  } catch (err) {
+    showTip('网络错误', 'error');
+  }
+}
+
+function resetItem(id) {
+  const orig = originalModules.find(m => m.id === id);
+  if (!orig) return;
+  const el = document.querySelector('.module-item[data-id="' + id + '"]');
+  el.querySelector('[data-field=name]').value = orig.name;
+  el.querySelector('[data-field=description]').value = orig.description || '';
+  el.querySelector('[data-field=link_url]').value = orig.link_url || '';
+  el.querySelector('[data-field=link_type]').value = orig.link_type;
+  el.querySelector('[data-field=visible_to]').value = orig.visible_to;
+  el.querySelector('[data-field=sort_order]').value = orig.sort_order;
+}
+
+function showTip(msg, type) {
+  const tip = document.getElementById('saveTip');
+  tip.textContent = msg;
+  tip.className = 'save-tip ' + type;
+  tip.style.opacity = '1';
+  clearTimeout(tip._timeout);
+  tip._timeout = setTimeout(() => { tip.style.opacity = '0'; }, 2000);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+function escapeAttr(str) {
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/';
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab-btn[onclick*="' + tab + '"]').classList.add('active');
+  document.getElementById(tab === 'modules' ? 'tabModules' : 'tabVisits').classList.add('active');
+  if (tab === 'visits') loadVisits();
+}
+
+async function loadVisits() {
+  const container = document.getElementById('visitContent');
+  try {
+    const res = await fetch('/api/admin/key-account-visits', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const users = data.users || [];
+    if (users.length === 0) {
+      container.innerHTML = '<div class="loading">暂无用户数据</div>';
+      return;
+    }
+    const roleLabel = { 'sales': '销售', 'l4_manager': 'L4负责人', 'l3_manager': 'L3负责人', 'city_manager': '城市管理' };
+    const now = new Date();
+    const rows = users.map(u => {
+      let statusHtml, statusClass;
+      if (!u.last_visited_at) {
+        statusHtml = '从未访问';
+        statusClass = 'status-never';
+      } else {
+        const visited = new Date(u.last_visited_at + 'Z');
+        const days = Math.floor((now - visited) / (1000 * 60 * 60 * 24));
+        const timeStr = u.last_visited_at.replace('T', ' ').substring(0, 16);
+        if (days === 0) { statusHtml = timeStr; statusClass = 'status-ok'; }
+        else if (days === 1) { statusHtml = timeStr + '（昨天）'; statusClass = 'status-warn'; }
+        else { statusHtml = timeStr + '（' + days + '天前）'; statusClass = 'status-warn'; }
+      }
+      return '<tr>' +
+        '<td>' + escapeHtml(u.display_name || u.username) + '</td>' +
+        '<td>' + (roleLabel[u.role] || u.role) + '</td>' +
+        '<td>' + (u.department || '—') + '</td>' +
+        '<td class="' + statusClass + '">' + statusHtml + '</td>' +
+        '</tr>';
+    }).join('');
+
+    container.innerHTML = '<table class="visit-table">' +
+      '<thead><tr><th>姓名</th><th>角色</th><th>部门</th><th>最近访问时间</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>';
+  } catch {
+    container.innerHTML = '<div class="loading">加载失败，请刷新重试</div>';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

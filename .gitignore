@@ -1,0 +1,58 @@
+# 环境配置（含密钥）
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# 数据库文件
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# IDE
+.vscode/
+.idea/
+
+# 上传文件
+uploads/
+
+# 临时脚本（含服务器凭据，勿提交）
+check_*.py
+clean_prod_db*.py
+find_prod_path.py
+match_and_export.py
+match_followup.py
+migrate_followup.py
+restore_backup.py
+recover_deleted_data.py
+upload_and_run.py
+simple_check.py
+upload_check_script.py
+_check_visits.py
+_test_write.py
+_verify_write.py
+_upload_prod.py
+diag.py
+tmp_sync.py
+
+# CRM 导出数据（含客户信息）
+crm_exports/
+
+# 临时数据文件
+match_preview.csv
+_test_upload.csv
+
+# 日志
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# WorkBuddy
+.workbuddy/
