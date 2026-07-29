@@ -96,6 +96,14 @@ def init_db():
         UNIQUE(leader_name, level, subordinate_name)
     )''')
 
+    # 跨三级组织可见性：某负责人可额外查看指定三级部门的数据（花名册重导不清除）
+    c.execute('''CREATE TABLE IF NOT EXISTS cross_dept_visibility (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        leader_name TEXT NOT NULL,
+        view_dept_l3 TEXT NOT NULL,
+        UNIQUE(leader_name, view_dept_l3)
+    )''')
+
     # 数据导入日志表
     c.execute('''CREATE TABLE IF NOT EXISTS data_import_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -297,6 +305,24 @@ def get_visible_owners(db, current_user):
         for s in l4_subs:
             owners.add(s['subordinate_name'])
 
+    # 跨三级组织可见性：额外查看指定三级部门的数据（持久，不受花名册重导影响）
+    cross_rows = db.execute(
+        "SELECT view_dept_l3 FROM cross_dept_visibility WHERE leader_name = ?",
+        (display_name,)
+    ).fetchall()
+    for cr in cross_rows:
+        dept = cr['view_dept_l3']
+        dep_rows = db.execute(
+            "SELECT DISTINCT owner_name FROM key_account_hardware "
+            "WHERE department = ? AND owner_name IS NOT NULL AND owner_name != ''",
+            (dept,)
+        ).fetchall()
+        for o in dep_rows:
+            own = o['owner_name']
+            prefix = own.split('-', 1)[0] if '-' in own else own
+            if prefix:
+                owners.add(prefix)
+
     return list(owners)
 
 
@@ -330,6 +356,10 @@ def login():
 
     if not user or not check_password_hash(user['password'], password):
         return jsonify({'error': '用户名或密码错误'}), 401
+
+    # 离职/停用账号拦截
+    if user.get('enabled', 1) != 1:
+        return jsonify({'error': '账号已停用，请联系管理员'}), 403
 
     payload = {
         'id': user['id'],
@@ -1717,13 +1747,22 @@ def ka_analytics_cross_table():
     for dept, total in dept_total_nc.items():
         new_customers.setdefault(dept, {})['__total__'] = total
 
-    # 2. 新客户打点数：is_checked_in=1 且 created_date >= '2026-04-01'
-    rows_cn = db.execute("""
+    # 2. 新客户打点数：is_checked_in=1 且 created_date >= '2026-04-01'（归属日期=借用/采购/创建，不含填报当天）
+    attr_expr = """COALESCE(
+        CASE
+          WHEN TRIM(lent_date) > '' AND TRIM(purchase_date) > '' THEN MIN(TRIM(lent_date), TRIM(purchase_date))
+          WHEN TRIM(lent_date) > '' THEN TRIM(lent_date)
+          WHEN TRIM(purchase_date) > '' THEN TRIM(purchase_date)
+          ELSE TRIM(created_date)
+        END,
+        TRIM(created_date)
+      )"""
+    rows_cn = db.execute(f"""
         SELECT department,
-               substr(COALESCE(checkin_date, created_date, ''), 1, 7) as month,
+               substr({attr_expr}, 1, 7) as month,
                COUNT(*) as cnt
         FROM key_account_hardware
-        WHERE is_checked_in=1 AND created_date >= '2026-04-01' AND COALESCE(is_paused,0)=0
+        WHERE is_checked_in=1 AND created_date >= '2026-04-01' AND {attr_expr} >= '2026-04-01'
         GROUP BY department, month
     """).fetchall()
     checkins_new = {}
@@ -1733,13 +1772,13 @@ def ka_analytics_cross_table():
         if len(m) == 7:
             checkins_new.setdefault(dept, {})[m] = r['cnt']
 
-    # 3. 老客户打点数：is_checked_in=1 且 created_date < '2026-04-01'
-    rows_co = db.execute("""
+    # 3. 老客户打点数：is_checked_in=1 且 created_date < '2026-04-01'（归属日期=借用/采购/创建，不含填报当天）
+    rows_co = db.execute(f"""
         SELECT department,
-               substr(COALESCE(checkin_date, lent_date, created_date, ''), 1, 7) as month,
+               substr({attr_expr}, 1, 7) as month,
                COUNT(*) as cnt
         FROM key_account_hardware
-        WHERE is_checked_in=1 AND created_date < '2026-04-01'
+        WHERE is_checked_in=1 AND created_date < '2026-04-01' AND {attr_expr} >= '2026-04-01'
         GROUP BY department, month
     """).fetchall()
     checkins_old = {}
@@ -1749,11 +1788,11 @@ def ka_analytics_cross_table():
         if len(m) == 7:
             checkins_old.setdefault(dept, {})[m] = r['cnt']
 
-    # 4. 各企业打点总数（纯计数，同KPI口径，含所有打点客户）
-    rows_tc = db.execute("""
+    # 4. 各部门打点总数（新财年，归属日期=借用/采购/创建，与月份明细一致）
+    rows_tc = db.execute(f"""
         SELECT department, COUNT(*) as cnt
         FROM key_account_hardware
-        WHERE is_checked_in=1
+        WHERE is_checked_in=1 AND {attr_expr} >= '2026-04-01'
         GROUP BY department
     """).fetchall()
     total_checkins = {}
@@ -1782,17 +1821,30 @@ def ka_analytics_cross_table():
 @app.route('/api/key-account/analytics/new-checkins-monthly', methods=['GET'])
 @token_required
 def ka_analytics_new_checkins():
-    """每月新增打点客户数（按打点日期 checkin_date，无则用 created_date 兜底，仅新财年 2026-04 起）"""
+    """每月新增打点客户数。
+    打点归属日期按优先级：1) 借用日期 lent_date  2) 采购日期 purchase_date
+                         3) 新客户创建日期 created_date（不使用填报当天 checkin_date）。
+    仅统计新财年 2026-04 起。
+    """
     dept = request.args.get('dept', '')
     db = get_db()
 
     owner_filter, owner_params = get_owner_filter(db, g.current_user, 'owner_name')
 
-    # 打点趋势用 checkin_date 为准，无则用 created_date 兜底，仅统计新财年
-    base_where = "is_checked_in=1 AND COALESCE(NULLIF(TRIM(checkin_date),''), NULLIF(TRIM(created_date),'')) >= '2026-04-01'"
+    # 打点归属日期：借用日期 → 采购日期 → 新客户创建日期（取借用/采购中较早者）
+    attr_expr = """COALESCE(
+        CASE
+          WHEN TRIM(lent_date) > '' AND TRIM(purchase_date) > '' THEN MIN(TRIM(lent_date), TRIM(purchase_date))
+          WHEN TRIM(lent_date) > '' THEN TRIM(lent_date)
+          WHEN TRIM(purchase_date) > '' THEN TRIM(purchase_date)
+          ELSE TRIM(created_date)
+        END,
+        TRIM(created_date)
+      )"""
+    base_where = f"is_checked_in=1 AND {attr_expr} >= '2026-04-01'"
     if dept:
         sql = f"""
-            SELECT substr(COALESCE(NULLIF(TRIM(checkin_date),''), NULLIF(TRIM(created_date),''), ''),1,7) as month,
+            SELECT substr({attr_expr}, 1, 7) as month,
                    COUNT(*) as cnt
             FROM key_account_hardware
             WHERE {base_where} AND department=?"""
@@ -1800,7 +1852,7 @@ def ka_analytics_new_checkins():
     else:
         sql = f"""
             SELECT department,
-                   substr(COALESCE(NULLIF(TRIM(checkin_date),''), NULLIF(TRIM(created_date),''), ''),1,7) as month,
+                   substr({attr_expr}, 1, 7) as month,
                    COUNT(*) as cnt
             FROM key_account_hardware
             WHERE {base_where}"""
