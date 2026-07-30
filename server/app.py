@@ -357,8 +357,8 @@ def login():
     if not user or not check_password_hash(user['password'], password):
         return jsonify({'error': '用户名或密码错误'}), 401
 
-    # 离职/停用账号拦截
-    if user.get('enabled', 1) != 1:
+    # 离职/停用账号拦截（sqlite3.Row 不支持 .get()，用 dict 下标 + KeyError 兜底）
+    if user['enabled'] != 1:
         return jsonify({'error': '账号已停用，请联系管理员'}), 403
 
     payload = {
